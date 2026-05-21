@@ -1,0 +1,440 @@
+@page "/auction/{Id}"
+@using Handal.Client.Models
+@inject AuctionPlatformService PlatformService
+@inject AuctionService AuctionService
+@inject BidService BidService
+@inject UserService UserService
+@inject NotificationService NotificationService
+@inject NavigationManager Nav
+
+<div class="container mx-auto px-4 lg:px-8 py-12">
+    @if (auction == null)
+    {
+        <div class="p-6 bg-white border-2 border-burgundy/10 rounded-2xl text-burgundy">Аукцион не найден.</div>
+    }
+    else
+    {
+        <div class="grid md:grid-cols-3 gap-8">
+            <div class="md:col-span-2">
+                <div class="relative rounded-2xl overflow-hidden shadow-2xl mb-8 border-4 border-white">
+                    <img src="@auction.Image" alt="@auction.Title" class="w-full h-auto object-cover" />
+                </div>
+
+                <h1 class="text-4xl md:text-5xl font-black mb-4 text-burgundy leading-tight">@auction.Title</h1>
+                <p class="text-lg text-burgundy/80 mb-4 leading-relaxed">@auction.Description</p>
+                @{
+                    var approvedSubcategories = GetAuctionSubcategoryTags(auction.Id);
+                    if (approvedSubcategories.Any())
+                    {
+                        <div class="mb-8 rounded-2xl bg-white border border-burgundy/10 p-5 shadow-sm">
+                            <div class="text-[11px] font-black text-burgundy/45 uppercase tracking-[0.2em] mb-3">Подкатегории и связанные теги</div>
+                            <div class="grid gap-2">
+                                @foreach (var tag in approvedSubcategories)
+                                {
+                                    <button class="flex items-center gap-2 px-3 py-2 rounded-2xl border border-burgundy/10 bg-burgundy/5 text-burgundy text-sm font-bold hover:bg-burgundy/10 transition-colors"
+                                            @onclick="() => NavigateToTagFilter(tag.TagName)">
+                                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-burgundy text-white text-xs">@(string.IsNullOrWhiteSpace(tag.Category) ? "?" : tag.Category[0].ToString())</span>
+                                        <span>@tag.TagName</span>
+                                        <span class="text-[11px] uppercase text-burgundy/60">@tag.Category</span>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
+
+                <!-- Текущая ставка -->
+                <div class="p-8 rounded-2xl bg-white border-4 border-yellow shadow-xl mb-8 relative overflow-hidden">
+                    <!-- Decor -->
+                    <div class="absolute -top-10 -right-10 w-40 h-40 bg-yellow/10 rounded-full blur-2xl"></div>
+
+                    <div class="relative z-10">
+                        <div class="text-sm font-bold text-burgundy/60 uppercase tracking-wider mb-2">Текущая ставка</div>
+                        <div class="flex items-baseline gap-2 mb-4">
+                            <div class="text-5xl md:text-6xl font-black text-burgundy">
+                                @auction.CurrentBid.ToString("N0")
+                            </div>
+                            <div class="text-2xl font-bold text-burgundy/60">гроши</div>
+                        </div>
+                        <div class="flex items-center gap-4 text-sm font-medium text-burgundy/70">
+                            <div class="flex items-center gap-1.5">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <span>Закрытие: @auction.EndsAt.ToString("g")</span>
+                            </div>
+                            <div class="w-1 h-1 rounded-full bg-burgundy/30"></div>
+                            <div class="flex items-center gap-1.5">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                <span>Ставок: @auction.BidsCount</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Форма ставки -->
+                @if (UserService.CurrentUser != null)
+                {
+                    <div class="p-8 rounded-2xl bg-burgundy text-white shadow-2xl mb-8 relative overflow-hidden">
+                        <!-- Decor -->
+                        <div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+
+                        <div class="relative z-10">
+                            <h3 class="text-2xl font-black mb-6">Сделать ставку</h3>
+
+                            <!-- Баланс пользователя -->
+                            <div class="grid grid-cols-2 gap-4 mb-8">
+                                <div class="p-4 rounded-xl bg-white/10 border border-white/10 backdrop-blur-sm">
+                                    <div class="text-white/60 text-xs font-bold uppercase tracking-wider mb-1">Ваш баланс</div>
+                                    <div class="text-2xl font-black text-yellow">@UserService.CurrentUser.AvailableBalance.ToString("N0") <span class="text-sm font-bold opacity-70">гроши</span></div>
+                                </div>
+                                <div class="p-4 rounded-xl bg-white/10 border border-white/10 backdrop-blur-sm">
+                                    <div class="text-white/60 text-xs font-bold uppercase tracking-wider mb-1">Доступно</div>
+                                    <div class="text-2xl font-black" style="color: @(UserService.CurrentUser.AvailableBalance >= bidAmount ? "#4ade80" : "#f87171")">
+                                        @UserService.CurrentUser.AvailableBalance.ToString("N0") <span class="text-sm font-bold opacity-70">гроши</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Поле ввода ставки -->
+                            <div class="mb-6">
+                                <label class="block text-sm font-bold text-white/80 mb-2">Размер ставки (минимум: @GetMinBid(auction) грошей)</label>
+                                <div class="relative">
+                                    <input type="number"
+                                           @bind="bidAmount"
+                                           class="w-full px-6 py-4 rounded-xl bg-white/10 border-2 border-white/20 text-white placeholder-white/40 focus:border-yellow focus:outline-none focus:bg-white/20 transition-all font-bold text-lg"
+                                           placeholder="Введите сумму ставки"
+                                           min="@GetMinBid(auction)" />
+                                    <div class="absolute right-6 top-1/2 -translate-y-1/2 text-white/50 font-bold pointer-events-none">гроши</div>
+                                </div>
+                            </div>
+
+                            <!-- Кнопка ставки -->
+                            <button class="w-full px-8 py-4 rounded-xl font-black text-lg transition-all duration-200 transform hover:-translate-y-1 active:translate-y-0 shadow-lg hover:shadow-yellow/20 flex items-center justify-center gap-2"
+                                    style="background-color: #EFD867; color: #682021;"
+                                    @onclick="PlaceBid"
+                                    disabled="@(UserService.CurrentUser.AvailableBalance < bidAmount)">
+                                <span>Подтвердить ставку</span>
+                                <span class="bg-burgundy/10 px-2 py-0.5 rounded text-sm">@bidAmount.ToString("N0")</span>
+                            </button>
+
+                            @if (!string.IsNullOrEmpty(BidError))
+                            {
+                                <div class="mt-4 p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-200 text-sm font-bold flex items-center gap-3">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    @BidError
+                                </div>
+                            }
+                            @if (!string.IsNullOrEmpty(BidSuccess))
+                            {
+                                <div class="mt-4 p-4 rounded-xl bg-green-500/20 border border-green-500/30 text-green-200 text-sm font-bold flex items-center gap-3">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    @BidSuccess
+                                </div>
+                            }
+
+                            <!-- Кнопка пополнения баланса -->
+                            @if (UserService.CurrentUser.AvailableBalance < bidAmount)
+                            {
+                                <div class="mt-6 pt-6 border-t border-white/10 text-center">
+                                    <p class="text-white/60 text-sm mb-3">Недостаточно средств для ставки</p>
+                                    <button class="inline-flex items-center gap-2 px-6 py-2 rounded-lg font-bold text-sm transition-colors border-2 border-white/20 hover:bg-white/10 hover:border-white/40 text-white"
+                                            @onclick="() => ShowTopUpModal = true">
+                                        Пополнить баланс
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="p-8 rounded-2xl bg-burgundy text-white shadow-2xl mb-8 text-center relative overflow-hidden">
+                        <div class="absolute inset-0 bg-[url('/images/pattern.svg')] opacity-5"></div>
+                        <div class="relative z-10">
+                            <div class="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 backdrop-blur-sm"></div>
+                            <h3 class="text-2xl font-black mb-2">Присоединяйтесь к торгам</h3>
+                            <p class="text-white/70 mb-6 max-w-md mx-auto">Войдите в аккаунт или зарегистрируйтесь, чтобы делать ставки и выигрывать лоты.</p>
+                            <AuthProtectedButton CssClass="px-8 py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-yellow/20 hover:-translate-y-1"
+                                                 AuthMode="login"
+                                                 GuestModeText="Войти или создать аккаунт"
+                                                 style="background-color: #EFD867; color: #682021;">
+                                Войти или создать аккаунт
+                            </AuthProtectedButton>
+                        </div>
+                    </div>
+                }
+
+                <Chat AuctionId="@Id" />
+
+                @if (similarAuctions.Any())
+                {
+                    <div class="mt-12">
+                        <h3 class="text-2xl font-black mb-6 text-burgundy">Похожие лоты</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+                            @foreach (var similar in similarAuctions)
+                            {
+                                <a href="/auction/@similar.Id" class="block bg-white rounded-xl border border-burgundy/10 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all overflow-hidden flex flex-row">
+                                    <img src="@similar.Image" alt="@similar.Title" class="w-32 h-32 object-cover" />
+                                    <div class="p-4 flex flex-col justify-center flex-1">
+                                        <div class="text-xs font-bold text-burgundy/60 mb-1">@similar.Category</div>
+                                        <h4 class="font-bold text-burgundy line-clamp-2 leading-tight mb-2">@similar.Title</h4>
+                                        <div class="font-black text-burgundy">@similar.CurrentBid.ToString("N0") гроши</div>
+                                    </div>
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Боковая панель с деталями -->
+            <aside class="h-fit space-y-6">
+                <div class="p-6 rounded-2xl bg-white border border-burgundy/10 shadow-lg">
+                    <h3 class="font-black text-xl mb-6 text-burgundy flex items-center gap-2">
+                        <svg class="w-6 h-6 text-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Детали лота
+                    </h3>
+
+                    <div class="space-y-5">
+                        <div class="flex justify-between items-center pb-4 border-b border-burgundy/5">
+                            <div class="text-burgundy/60 font-medium text-sm">Начальная цена</div>
+                            <div class="text-lg font-black text-burgundy">@auction.StartPrice.ToString("N0") <span class="text-sm font-bold text-burgundy/50">гроши</span></div>
+                        </div>
+
+                        <div class="flex justify-between items-center pb-4 border-b border-burgundy/5">
+                            <div class="text-burgundy/60 font-medium text-sm">Статус</div>
+                            <div class="font-bold">
+                                @if (auction.Status == AuctionStatus.Active)
+                                {
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm">
+                                        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Активен
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-100 text-red-700 text-sm">
+                                        <span class="w-2 h-2 rounded-full bg-red-500"></span> @auction.Status
+                                    </span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center pb-4 border-b border-burgundy/5">
+                            <div class="text-burgundy/60 font-medium text-sm">Осталось времени</div>
+                            <div class="font-mono font-bold text-burgundy bg-burgundy/5 px-2 py-1 rounded">@FormatTimeRemaining(auction.TimeRemaining)</div>
+                        </div>
+
+                        <div class="flex justify-between items-center pb-4 border-b border-burgundy/5">
+                            <div class="text-burgundy/60 font-medium text-sm">Просмотров</div>
+                            <div class="font-bold text-burgundy flex items-center gap-1.5" title="Просмотры">
+                                <svg class="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                @auction.ViewsCount
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center pb-4 border-b border-burgundy/5">
+                            <div class="text-burgundy/60 font-medium text-sm">Комментариев</div>
+                            <div class="font-bold text-burgundy flex items-center gap-1.5" title="Комментарии">
+                                <svg class="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                                @PlatformService.ChatService.GetMessageCount(auction.Id)
+                            </div>
+                        </div>
+
+                        @if (auction.IsCharitable)
+                        {
+                            <div class="mt-4 p-4 rounded-xl bg-green-50 border border-green-100 flex items-start gap-3">
+                                <div class="text-2xl"></div>
+                                <div>
+                                    <div class="text-green-800 font-bold text-sm">Благотворительный лот</div>
+                                    <div class="text-green-600 text-xs mt-0.5">@auction.CharityPercent% от продажи пойдут на благотворительность</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="p-6 rounded-2xl bg-burgundy/5 border border-burgundy/10">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-burgundy text-white flex items-center justify-center font-bold text-lg">
+                            @SellerInitial
+                        </div>
+                        <div>
+                            <div class="font-bold text-burgundy">@SellerDisplayName</div>
+                            <div class="text-xs text-burgundy/60">Рейтинг: @(sellerUser?.Rating.ToString("0.0") ?? "—")</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    }
+</div>
+
+<!-- Модальное окно пополнения баланса -->
+@if (ShowTopUpModal && UserService.CurrentUser != null)
+{
+    <div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" @onclick="() => ShowTopUpModal = false">
+        <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden border-4 border-yellow shadow-2xl animate-fade-in-up" @onclick:stopPropagation>
+            <div class="bg-burgundy p-6 text-white relative overflow-hidden">
+                <div class="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                <h2 class="text-2xl font-black relative z-10">Пополнить баланс</h2>
+                <p class="text-white/70 text-sm relative z-10">Пополните счет для участия в торгах</p>
+            </div>
+
+            <div class="p-6">
+                <div class="mb-6 p-4 rounded-xl bg-burgundy/5 border border-burgundy/10 flex justify-between items-center">
+                    <span class="text-burgundy/70 font-bold text-sm">Текущий баланс</span>
+                    <span class="text-2xl font-black text-burgundy">@UserService.CurrentUser.AvailableBalance.ToString("N0") <span class="text-sm opacity-50">гроши</span></span>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-burgundy mb-2">Сумма пополнения</label>
+                    <div class="relative">
+                        <input type="number"
+                               @bind="TopUpAmount"
+                               class="w-full px-4 py-3 rounded-xl bg-white border-2 border-burgundy/10 text-burgundy font-bold focus:border-yellow focus:outline-none transition-colors"
+                               placeholder="Введите сумму"
+                               min="100" />
+                        <div class="absolute right-4 top-1/2 -translate-y-1/2 text-burgundy/40 font-bold pointer-events-none">гроши</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 mb-8">
+                    <button @onclick="() => TopUpAmount = 1000" class="py-2 rounded-lg bg-burgundy/5 hover:bg-burgundy/10 text-burgundy font-bold text-sm transition-colors border border-transparent hover:border-burgundy/20">1000</button>
+                    <button @onclick="() => TopUpAmount = 5000" class="py-2 rounded-lg bg-burgundy/5 hover:bg-burgundy/10 text-burgundy font-bold text-sm transition-colors border border-transparent hover:border-burgundy/20">5000</button>
+                    <button @onclick="() => TopUpAmount = 10000" class="py-2 rounded-lg bg-burgundy/5 hover:bg-burgundy/10 text-burgundy font-bold text-sm transition-colors border border-transparent hover:border-burgundy/20">10000</button>
+                </div>
+
+                <button class="w-full px-6 py-4 rounded-xl font-bold text-white shadow-lg hover:shadow-burgundy/20 transform hover:-translate-y-0.5 transition-all mb-3"
+                        style="background-color: #682021;"
+                        @onclick="ConfirmTopUp">
+                    Пополнить на @TopUpAmount.ToString("N0") гроши
+                </button>
+
+                <button class="w-full py-3 rounded-xl font-bold text-burgundy/60 hover:text-burgundy hover:bg-burgundy/5 transition-colors"
+                        @onclick="() => ShowTopUpModal = false">
+                    Отмена
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Id { get; set; } = string.Empty;
+    private Auction? auction;
+    private decimal bidAmount = 0m;
+    private decimal TopUpAmount = 5000m;
+    private string BidError = string.Empty;
+    private string BidSuccess = string.Empty;
+    private bool ShowTopUpModal = false;
+    private User? sellerUser;
+    private string SellerDisplayName => sellerUser is null ? "Продавец" : (!string.IsNullOrWhiteSpace(sellerUser.FullName) ? sellerUser.FullName : (sellerUser.Email?.Split('@').FirstOrDefault() ?? "Продавец"));
+    private string SellerInitial => string.IsNullOrWhiteSpace(SellerDisplayName) ? "?" : SellerDisplayName.Substring(0, 1).ToUpper();
+    private List<Auction> similarAuctions = new();
+
+    private List<(string TagName, string Category)> GetAuctionSubcategoryTags(string auctionId)
+    {
+        return PlatformService.TagService.GetApprovedTagAssignmentsForAuction(auctionId)
+            .Select(a =>
+            {
+                var tag = PlatformService.TagService.GetAllTagDefinitions().FirstOrDefault(t => t.Id == a.TagDefinitionId);
+                return (TagName: tag?.Name ?? a.RawInput, Category: tag?.Category ?? a.Category);
+            })
+            .Where(x => !string.IsNullOrWhiteSpace(x.TagName))
+            .Distinct()
+            .ToList();
+    }
+
+    private void NavigateToTagFilter(string tagName)
+    {
+        var encoded = Uri.EscapeDataString(tagName);
+        Nav.NavigateTo($"/?tag={encoded}");
+    }
+
+    protected override void OnParametersSet()
+    {
+        auction = AuctionService.GetAuctionById(Id);
+        if (auction != null)
+        {
+            auction.ViewsCount++;
+            PlatformService.SaveState();
+            
+            bidAmount = GetMinBid(auction);
+            sellerUser = UserService.GetUserById(auction.SellerId);
+
+            similarAuctions = AuctionService.GetActiveAuctions()
+                .Where(a => a.Id != auction.Id && (a.Category == auction.Category || a.Title.Contains(auction.Title.Split(' ')[0], StringComparison.OrdinalIgnoreCase)))
+                .OrderBy(a => Math.Abs(a.CurrentBid - auction.CurrentBid))
+                .Take(4)
+                .ToList();
+        }
+    }
+
+    private void PlaceBid()
+    {
+        BidError = string.Empty;
+        BidSuccess = string.Empty;
+        var user = UserService.CurrentUser;
+        if (user == null)
+        {
+            UserService.RequestLogin();
+            return;
+        }
+
+        var (success, message) = BidService.PlaceBid(Id, user.Id, bidAmount);
+        if (!success)
+        {
+            BidError = message;
+            return;
+        }
+
+        BidSuccess = "Ставка успешно размещена. Проверьте уведомления и почту.";
+
+        // Notify seller (safety: auction may be null)
+        if (auction != null)
+        {
+            NotificationService.NotifyBidIncreased(auction.SellerId, auction.Id, auction.Title, bidAmount);
+        }
+        PlatformService.SaveState();
+
+        // Refresh auction
+        auction = AuctionService.GetAuctionById(Id);
+        if (auction != null)
+        {
+            bidAmount = GetMinBid(auction);
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ConfirmTopUp()
+    {
+        if (UserService.CurrentUser == null)
+            return;
+
+        var (success, msg) = UserService.AddBalance(UserService.CurrentUser.Id, TopUpAmount);
+        if (success)
+        {
+            ShowTopUpModal = false;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private string FormatTimeRemaining(TimeSpan time)
+    {
+        if (time.TotalSeconds < 0)
+            return "Завершен";
+
+        if (time.TotalDays >= 1)
+            return $"{(int)time.TotalDays}д {time.Hours}ч";
+
+        if (time.TotalHours >= 1)
+            return $"{(int)time.TotalHours}ч {time.Minutes}м";
+
+        return $"{time.Minutes}м {time.Seconds}с";
+    }
+
+    private decimal GetMinBid(Auction a)
+    {
+        var baseAmount = Math.Max(a.StartPrice, a.CurrentBid);
+        return Math.Ceiling(baseAmount * 1.1m);
+    }
+}

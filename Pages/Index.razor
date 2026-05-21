@@ -1,0 +1,1160 @@
+@page "/"
+@using Handal.Client.Models
+@inject AuctionPlatformService Platform
+@inject UserService UserService
+@inject BidService BidService
+@inject NotificationService NotificationService
+@inject NavigationManager Nav
+
+<div class="min-h-screen auction-hall-bg font-sans">
+    <!-- Hero Section -->
+    <section class="relative py-28 overflow-hidden border-b border-yellow/30">
+        <!-- Background decoration -->
+        <div class="absolute inset-0 overflow-hidden pointer-events-none">
+            <div class="absolute -top-[25%] -right-[10%] w-[800px] h-[800px] rounded-full blur-3xl opacity-20" style="background: radial-gradient(circle, rgba(239,216,103,0.3) 0%, rgba(239,216,103,0.05) 60%, transparent 70%);"></div>
+            <div class="absolute top-[45%] -left-[15%] w-[600px] h-[600px] rounded-full blur-3xl opacity-30" style="background: radial-gradient(circle, rgba(104,32,33,0.45) 0%, rgba(104,32,33,0.1) 60%, transparent 70%);"></div>
+        </div>
+
+        <div class="container mx-auto px-4 lg:px-8 relative z-10">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 bg-yellow/10 border border-yellow/40">
+                        <span class="text-xs font-bold tracking-wider text-black uppercase">Premium Auction Platform</span>
+                    </div>
+                    <h1 class="text-5xl lg:text-7xl font-black mb-6 leading-tight text-burgundy">
+                        Эксклюзивные <span class="hero-gold-title">аукционы</span>
+                    </h1>
+                    <p class="text-xl mb-8 text-burgundy/90 max-w-lg leading-relaxed">
+                        Антиквариат, искусство и коллекционные редкости с прозрачной торговлей и безопасными операциями.
+                    </p>
+                    <div class="flex flex-col sm:flex-row items-center justify-start gap-4 sm:gap-6">
+                        <a href="#auctions" class="px-8 py-4 rounded-xl font-bold text-center transition-all hover:-translate-y-1 btn-burgundy">
+                            Смотреть аукционы
+                        </a>
+
+                        <!-- Кнопка "Создать аккаунт" - показываем только если пользователь не авторизован -->
+                        @if (UserService.CurrentUser == null)
+                        {
+                            <button @onclick="() => UserService.RequestLogin()"
+                                    class="px-8 py-4 rounded-xl font-bold transition-all btn-burgundy">
+                                Создать аккаунт
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="hidden lg:block">
+                    @{
+                        var platformStats = Platform.GetPlatformStats();
+                    }
+                    <div class="relative">
+                        <!-- Stats Card -->
+                        <div class="bg-white rounded-2xl p-8 shadow-2xl border-4 border-yellow relative z-10 text-burgundy">
+                            <div class="grid grid-cols-2 gap-6">
+                                <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                                    <div class="text-sm text-burgundy/60 mb-1 font-medium">Активных лотов</div>
+                                    <div class="text-4xl font-black text-burgundy">@platformStats.TotalAuctions</div>
+                                </div>
+                                <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                                    <div class="text-sm text-burgundy/60 mb-1 font-medium">Участников</div>
+                                    <div class="text-4xl font-black text-burgundy">@platformStats.TotalUsers</div>
+                                </div>
+                                <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                                    <div class="text-sm text-burgundy/60 mb-1 font-medium">Объём торгов</div>
+                                    @{
+                                        var volume = platformStats.TotalVolume;
+                                        var volumeText = volume >= 1000000 ? $"{(volume / 1000000m):N1}M+" : $"{(volume / 1000m):N0}K+";
+                                    }
+                                    <div class="text-4xl font-black text-burgundy">@volumeText</div>
+                                </div>
+                                <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                                    <div class="text-sm text-burgundy/60 mb-1 font-medium">Рейтинг</div>
+                                    <div class="text-4xl font-black text-yellow">4.8★</div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Decorative elements behind card -->
+                        <div class="absolute -inset-4 bg-burgundy/10 rounded-[2rem] -z-10 blur-md opacity-60"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Categories Section -->
+    <div class="mt-4 relative z-20">
+        <Categories OnCategorySelected="FilterBy" />
+
+        <div class="container mx-auto px-4 lg:px-8 mt-10">
+            <div class="bg-white rounded-[28px] shadow-xl shadow-burgundy/10 border border-burgundy/10 overflow-hidden">
+                <div class="p-6 md:p-8 border-b border-burgundy/10 bg-gradient-to-r from-white to-yellow/10">
+                    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+                        <div>
+                            <div class="text-[11px] font-black text-burgundy/50 uppercase tracking-[0.2em] mb-2">Умный поиск</div>
+                            <h3 class="text-2xl md:text-3xl font-black text-burgundy">Поиск по лотам и тегам</h3>
+                            <p class="text-burgundy/60 mt-2 max-w-2xl">Ищите по названию, описанию и сочетаниям тегов. Теги применяются мгновенно и показывают только действительно релевантные лоты.</p>
+                        </div>
+                        <div class="flex flex-wrap gap-3">
+                            <button class="@GetFilterModeClass(false)" @onclick="() => SetTagMatchMode(false)">Любой тег</button>
+                            <button class="@GetFilterModeClass(true)" @onclick="() => SetTagMatchMode(true)">Все теги</button>
+                            <select class="px-4 py-3 rounded-2xl border-2 border-burgundy/10 text-burgundy font-bold bg-white" @bind="_sortMode">
+                                <option value="relevance">Сначала релевантные</option>
+                                <option value="newest">Сначала новые</option>
+                                <option value="price_desc">Цена по убыванию</option>
+                                <option value="price_asc">Цена по возрастанию</option>
+                                <option value="popular">Сначала популярные</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-6 md:p-8">
+                    <div class="grid lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.9fr)] gap-6">
+                        <div class="space-y-4">
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <input class="w-full px-5 py-4 rounded-2xl bg-white border-2 border-burgundy/10 text-burgundy font-bold focus:border-yellow focus:outline-none"
+                                       placeholder="Поиск по названию и описанию"
+                                       @bind="_lotSearchQuery" />
+                                <div class="relative">
+                                    <div class="flex flex-col sm:flex-row gap-2">
+                                        <input class="flex-1 min-w-0 px-5 py-4 rounded-2xl bg-white border-2 border-burgundy/10 text-burgundy font-bold focus:border-yellow focus:outline-none"
+                                               placeholder="Добавить тег в фильтр"
+                                               @bind="_filterTagInput"
+                                               @oninput="UpdateTagSuggestions"
+                                               @onkeydown="HandleFilterTagInputKeyDown" />
+                                        <button type="button" class="whitespace-nowrap px-6 py-4 rounded-2xl bg-burgundy text-white font-bold transition-colors hover:bg-burgundy/90"
+                                                @onclick="() => AddFilterTag(_filterTagInput)">Добавить</button>
+                                    </div>
+                                    @if (_filterSuggestions.Count > 0)
+                                    {
+                                        <div class="absolute z-20 bg-white border border-burgundy/10 rounded-2xl mt-2 w-full max-h-60 overflow-auto shadow-xl">
+                                            @foreach (var s in _filterSuggestions)
+                                            {
+                                                <button type="button" class="w-full text-left px-4 py-3 hover:bg-burgundy/5 font-semibold text-burgundy" @onclick="() => AddFilterTag(s)">@s</button>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            <div class="mt-3 text-xs text-burgundy/60">Введите тег и нажмите Enter или кнопку «Найти лоты» — он автоматически добавится в фильтр.</div>
+
+                            @if (_selectedFilterTags.Count > 0)
+                            {
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach (var t in _selectedFilterTags)
+                                    {
+                                        <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-burgundy text-white text-sm font-bold shadow-sm">
+                                            @t
+                                            <button class="text-white/80 hover:text-white" @onclick="() => RemoveFilterTag(t)">×</button>
+                                        </span>
+                                    }
+                                </div>
+                            }
+
+                            <div class="flex flex-wrap gap-3">
+                                <button class="px-5 py-3 rounded-2xl bg-burgundy text-white font-black shadow-lg" @onclick="ApplyTagFilter">Найти лоты</button>
+                                <button class="px-5 py-3 rounded-2xl border-2 border-burgundy/10 text-burgundy font-bold bg-white" @onclick="ClearAllFilters">Сбросить всё</button>
+                                @if (UserService.CurrentUser != null && _selectedFilterTags.Count > 0)
+                                {
+                                    <button class="px-5 py-3 rounded-2xl border-2 border-yellow/40 text-burgundy font-bold bg-yellow/10" @onclick="SaveCurrentFilterSet">Сохранить набор</button>
+                                }
+                                @if (UserService.CurrentUser != null && (UserService.CurrentUser.SavedTagFilters?.Count ?? 0) > 0)
+                                {
+                                    <select class="px-4 py-3 rounded-2xl border-2 border-burgundy/10 text-burgundy font-bold bg-white" @onchange="ApplySavedFilterSet">
+                                        <option value="">Сохранённые наборы</option>
+                                        @foreach (var set in UserService.CurrentUser.SavedTagFilters!)
+                                        {
+                                            <option value="@set.Id">@set.Name</option>
+                                        }
+                                    </select>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="rounded-3xl bg-burgundy text-white p-6 md:p-7 shadow-xl">
+                            <div class="text-[11px] font-black uppercase tracking-[0.2em] text-yellow/80 mb-2">Популярные теги</div>
+                            <div class="text-2xl font-black mb-4">Подборки для быстрого старта</div>
+                            <div class="flex flex-wrap gap-2 mb-5">
+                                @foreach (var tag in GetSearchDiscoveryTags())
+                                {
+                                    <button class="px-3 py-2 rounded-full bg-white/10 border border-white/10 hover:bg-white/20 text-sm font-bold transition-colors"
+                                            @onclick="() => AddFilterTag(tag)">
+                                        @tag
+                                    </button>
+                                }
+                            </div>
+                            <div class="grid grid-cols-3 gap-3">
+                                <div class="rounded-2xl bg-white/10 p-4 border border-white/10">
+                                    <div class="text-xs uppercase tracking-wider text-white/60 mb-1">Лотов</div>
+                                    <div class="text-2xl font-black">@FilteredAuctions.Count</div>
+                                </div>
+                                <div class="rounded-2xl bg-white/10 p-4 border border-white/10">
+                                    <div class="text-xs uppercase tracking-wider text-white/60 mb-1">Тегов</div>
+                                    <div class="text-2xl font-black">@_selectedFilterTags.Count</div>
+                                </div>
+                                <div class="rounded-2xl bg-white/10 p-4 border border-white/10">
+                                    <div class="text-xs uppercase tracking-wider text-white/60 mb-1">Режим</div>
+                                    <div class="text-lg font-black">@(_matchAllSelectedTags ? "AND" : "OR")</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auctions Grid -->
+    <section class="py-24" id="auctions">
+        <div class="container mx-auto px-4 lg:px-8">
+            <div class="mb-14 flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="w-8 h-[2px] gold-divider"></span>
+                        <span class="text-white font-bold text-sm tracking-wider uppercase">
+                            @(string.IsNullOrEmpty(selectedCategory) ? "" : selectedCategory)
+                        </span>
+                    </div>
+                    <h2 class="text-4xl font-black hero-gold-title">
+                        @(string.IsNullOrEmpty(selectedCategory) ? "Актуальные лоты" : $"Лоты: {selectedCategory}")
+                    </h2>
+                </div>
+                @if (!string.IsNullOrEmpty(selectedCategory))
+                {
+                    <button class="text-white/70 hover:text-white font-bold underline" @onclick="() => FilterBy(null)">
+                        Сбросить фильтр
+                    </button>
+                }
+                <p class="text-burgundy/80 text-lg max-w-md">Лучшие предложения от коллекционеров со всего мира, доступные для ставок прямо сейчас.</p>
+            </div>
+
+            @if (FilteredAuctions.Count == 0)
+            {
+                <div class="py-20 text-center">
+                    <div class="inline-block p-4 rounded-full bg-yellow/10 mb-4">
+                        <span class="text-4xl"></span>
+                    </div>
+                    <p class="text-xl text-white/70 font-medium">Лоты не найдены...</p>
+                </div>
+            }
+            else
+            {
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    @foreach (var auction in FilteredAuctions.Take(40))
+                    {
+                        <div class="group block h-full relative">
+                            <a href="/auction/@auction.Id" class="h-full block">
+                                <div class="h-full bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-burgundy/10 hover:-translate-y-1 border border-burgundy/10 shadow-sm">
+                                    <div class="relative h-64 overflow-hidden bg-gray-100">
+                                        <img src="@auction.Image" alt="@auction.Title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+
+                                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60"></div>
+                                        @if (auction.IsCharitable)
+                                        {
+                                            <div class="absolute top-4 left-4 px-3 py-1 rounded-full bg-green-600/90 text-white text-xs font-black border border-white/20 backdrop-blur-sm">
+                                                Благотворительное
+                                            </div>
+                                        }
+
+                                        <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end text-white">
+                                            <div class="px-2 py-1 rounded bg-black/40 backdrop-blur-sm text-xs font-medium border border-white/20">
+                                                @auction.Category
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="p-6">
+                                        <h3 class="font-bold text-burgundy text-lg mb-2 line-clamp-2 leading-snug group-hover:text-black transition-colors pr-8">
+                                            @auction.Title
+                                        </h3>
+                                        <p class="text-sm text-burgundy/65 line-clamp-2 min-h-[2.5rem] mb-4">@auction.Description</p>
+
+                                        @{
+                                            var previewTags = GetAuctionPreviewTags(auction.Id);
+                                        }
+                                        @if (previewTags.Any())
+                                        {
+                                            <div class="flex flex-wrap gap-2 mb-4">
+                                                @foreach (var tag in previewTags)
+                                                {
+                                                    <span class="px-2.5 py-1 rounded-full bg-burgundy/5 border border-burgundy/10 text-burgundy text-xs font-bold">@tag</span>
+                                                }
+                                            </div>
+                                        }
+
+                                        <div class="flex items-center gap-4 text-xs text-burgundy/60 mb-4">
+                                            <span class="flex items-center gap-1" title="Просмотры">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                                @auction.ViewsCount
+                                            </span>
+                                            <span class="flex items-center gap-1" title="Комментарии">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                                                @Platform.ChatService.GetMessageCount(auction.Id)
+                                            </span>
+                                            <span class="flex items-center gap-1" title="Ставки">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"></path></svg>
+                                                @auction.BidsCount
+                                            </span>
+                                        </div>
+
+                                        <div class="pt-4 border-t border-burgundy/10 flex items-center justify-between">
+                                            <div>
+                                                <div class="text-xs text-burgundy/50 mb-0.5">Текущая цена</div>
+                                                <div class="text-xl font-black text-burgundy">
+                                                    @auction.CurrentBid.ToString("N0") гроши
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="text-xs text-burgundy/50 mb-0.5">Завершение</div>
+                                                <div class="text-sm font-semibold @(auction.TimeRemaining.TotalHours < 1 ? "text-burgundy font-black" : "text-burgundy/70")">
+                                                    @FormatTimeRemaining(auction.TimeRemaining)
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+
+                            <!-- Favorite Button -->
+                            <button class="absolute top-4 right-4 z-10 p-2 rounded-full transition-all @(UserService.IsFavorite(auction.Id) ? "bg-yellow text-burgundy" : "bg-black/20 text-white hover:bg-white hover:text-burgundy")"
+                                    @onclick="() => UserService.ToggleFavorite(auction.Id)"
+                                    @onclick:preventDefault>
+                                <svg class="w-5 h-5" fill="@(UserService.IsFavorite(auction.Id) ? "currentColor" : "none")" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+
+    <section id="about" class="py-24 border-y border-yellow/20">
+        <div class="container mx-auto px-4 lg:px-8">
+            <div class="mb-10 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+                <div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="w-8 h-[2px] gold-divider"></span>
+                    </div>
+                    <h2 class="text-4xl font-black hero-gold-title m-0">О нас</h2>
+                    <p class="text-white/80 mt-3 max-w-3xl text-lg">Мы объединяем страсть коллекционеров с интеллектом аналитики, чтобы вы могли продавать и приобретать предметы с полной уверенностью в их подлинной цене.</p>
+                </div>
+                <div class="inline-flex p-1 rounded-xl bg-white/10 border border-white/20">
+                    <button class="px-4 py-2 rounded-lg font-bold text-sm transition-all @(selectedSalesPeriod == SalesPeriod.Month ? "bg-yellow text-burgundy shadow" : "text-white/80 hover:text-white")"
+                            @onclick="() => UpdateStats(SalesPeriod.Month)">
+                        За месяц
+                    </button>
+                    <button class="px-4 py-2 rounded-lg font-bold text-sm transition-all @(selectedSalesPeriod == SalesPeriod.Year ? "bg-yellow text-burgundy shadow" : "text-white/80 hover:text-white")"
+                            @onclick="() => UpdateStats(SalesPeriod.Year)">
+                        За год
+                    </button>
+                </div>
+            </div>
+
+            @{
+                var salesStats = currentStats;
+                var totalSalesCount = salesStats.Sum(s => s.SalesCount);
+                var totalSalesAmount = salesStats.Sum(s => s.TotalSales);
+                var avgDealPrice = totalSalesCount > 0 ? totalSalesAmount / totalSalesCount : 0;
+                var maxDealPrice = salesStats.Count > 0 ? salesStats.Max(s => s.MaxPrice) : 0;
+                var maxAvgByCategory = salesStats.Max(s => s.AveragePrice);
+                var maxPeakByCategory = salesStats.Max(s => s.MaxPrice);
+                var topCategories = salesStats.Take(3).Select(s => s.Category).ToList();
+            }
+
+            <div class="grid md:grid-cols-3 gap-4 mb-8">
+                <div class="p-6 rounded-2xl border border-burgundy/10 bg-burgundy text-white shadow-lg">
+                    <div class="text-sm uppercase tracking-wider text-white/70 font-bold mb-2">Завершённых продаж</div>
+                    <div class="text-4xl font-black">@totalSalesCount.ToString("N0")</div>
+                </div>
+                <div class="p-6 rounded-2xl border border-burgundy/10 bg-white shadow-sm">
+                    <div class="text-sm uppercase tracking-wider text-burgundy/60 font-bold mb-2">Средняя цена сделки</div>
+                    <div class="text-4xl font-black text-burgundy">@avgDealPrice.ToString("N0")</div>
+                    <div class="text-xs font-bold text-burgundy/50 mt-1">гроши</div>
+                </div>
+                <div class="p-6 rounded-2xl border border-burgundy/10 bg-burgundy/30 shadow-lg">
+                    <div class="text-sm uppercase tracking-wider text-white/70 font-bold mb-2">Максимальная цена</div>
+                    <div class="text-4xl font-black text-white">@maxDealPrice.ToString("N0")</div>
+                    <div class="text-xs font-bold text-white/50 mt-1">гроши</div>
+                </div>
+            </div>
+
+            <div class="grid xl:grid-cols-3 gap-8">
+                <div class="xl:col-span-1 p-6 rounded-2xl border border-burgundy/10 bg-white shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-2 group">
+                    <h3 class="text-xl font-black text-burgundy mb-5">Структура продаж по категориям</h3>
+                    <div class="flex flex-col items-center gap-4">
+                        <div class="w-64 h-64 relative pie-container">
+                            <svg viewBox="0 0 200 200" class="w-full h-full transform transition-transform duration-500 group-hover:scale-110">
+                                @{
+                                    decimal currentAngle = 0;
+                                    var activeStats = currentStats.Where(s => s.SharePercent > 0).OrderByDescending(s => s.SharePercent).ToList();
+                                }
+                                @foreach (var stat in activeStats)
+                                {
+                                    var angle = (double)stat.SharePercent * 3.6;
+                                    var startAngle = (double)currentAngle * 3.6;
+                                    var endAngle = startAngle + angle;
+
+                                    var x1 = 100 + 80 * Math.Sin(Math.PI * startAngle / 180.0);
+                                    var y1 = 100 - 80 * Math.Cos(Math.PI * startAngle / 180.0);
+                                    var x2 = 100 + 80 * Math.Sin(Math.PI * endAngle / 180.0);
+                                    var y2 = 100 - 80 * Math.Cos(Math.PI * endAngle / 180.0);
+
+                                    var largeArcFlag = angle > 180 ? 1 : 0;
+                                    var d = $"M 100 100 L {x1.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} {y1.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} A 80 80 0 {largeArcFlag} 1 {x2.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} {y2.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} Z";
+
+                                    <path d="@d"
+                                          fill="@GetCategoryColor(stat.Category)"
+                                          class="pie-slice @(hoveredCategory == stat.Category ? "active" : "")"
+                                          style="@(hoveredCategory == stat.Category ? $"transform: translate({(8 * Math.Sin(Math.PI * (startAngle + angle / 2) / 180.0)).ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}px, {(-8 * Math.Cos(Math.PI * (startAngle + angle / 2) / 180.0)).ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}px) scale(1.05);" : "")"
+                                          @onmouseover="() => hoveredCategory = stat.Category"
+                                          @onmouseout="() => hoveredCategory = null" />
+
+                                    currentAngle += stat.SharePercent;
+                                }
+                            </svg>
+                        </div>
+                        <div class="w-full space-y-2">
+                            @foreach (var stat in salesStats.Take(10))
+                            {
+                                <div class="flex items-center justify-between text-sm p-1 rounded transition-colors @(hoveredCategory == stat.Category ? "bg-burgundy/5 scale-105" : "")">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <span class="w-3 h-3 rounded-full flex-shrink-0" style="background:@GetCategoryColor(stat.Category)"></span>
+                                        <span class="font-bold text-burgundy truncate">@stat.Category</span>
+                                        @if (topCategories.Contains(stat.Category))
+                                        {
+                                            <span class="px-1.5 py-0.5 rounded bg-yellow/20 text-[10px] text-burgundy font-black uppercase">ТОП</span>
+                                        }
+                                    </div>
+                                    <span class="text-burgundy/70 font-bold">@stat.SharePercent.ToString("N1")%</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="xl:col-span-2 grid md:grid-cols-2 gap-6">
+                    <div class="p-6 rounded-2xl border border-burgundy/10 bg-white shadow-sm">
+                        <h3 class="text-xl font-black text-burgundy mb-5">Средняя цена по категориям</h3>
+                        <div class="space-y-3 max-h-[420px] overflow-auto pr-1">
+                            @foreach (var stat in salesStats.OrderByDescending(s => s.AveragePrice))
+                            {
+                                var width = maxAvgByCategory <= 0 ? 0 : (stat.AveragePrice / maxAvgByCategory * 100m);
+                                <div class="@(topCategories.Contains(stat.Category) ? "bg-burgundy/5" : "") @(hoveredCategory == stat.Category ? "ring-2 ring-burgundy/20 bg-burgundy/5" : "") p-3 rounded-xl transition-all duration-300">
+                                    <div class="flex items-center justify-between mb-2 text-sm">
+                                        <span class="font-bold text-burgundy">@stat.Category</span>
+                                        <span class="font-black text-burgundy">@stat.AveragePrice.ToString("N0")</span>
+                                    </div>
+                                    <div class="h-2 rounded-full bg-burgundy/10 overflow-hidden">
+                                        <div class="h-full rounded-full animated-bar" style="width:@(width.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%; background:@GetCategoryColor(stat.Category)"></div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="p-6 rounded-2xl border border-burgundy/10 bg-white shadow-sm">
+                        <h3 class="text-xl font-black text-burgundy mb-5">Максимальная цена по категориям</h3>
+                        <div class="space-y-3 max-h-[420px] overflow-auto pr-1">
+                            @foreach (var stat in salesStats.OrderByDescending(s => s.MaxPrice))
+                            {
+                                var width = maxPeakByCategory <= 0 ? 0 : (stat.MaxPrice / maxPeakByCategory * 100m);
+                                <div class="@(topCategories.Contains(stat.Category) ? "bg-yellow/10" : "") @(hoveredCategory == stat.Category ? "ring-2 ring-yellow/40 bg-yellow/20" : "") p-3 rounded-xl transition-all duration-300">
+                                    <div class="flex items-center justify-between mb-2 text-sm">
+                                        <span class="font-bold text-burgundy">@stat.Category</span>
+                                        <span class="font-black text-burgundy">@stat.MaxPrice.ToString("N0")</span>
+                                    </div>
+                                    <div class="h-2 rounded-full bg-yellow/20 overflow-hidden">
+                                        <div class="h-full rounded-full animated-bar" style="width:@(width.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%; background:@GetCategoryColor(stat.Category)"></div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-24 bg-white border-t border-burgundy/10">
+        <div class="container mx-auto px-4 lg:px-8">
+            <div class="relative rounded-3xl p-12 overflow-hidden text-center bg-burgundy text-white shadow-2xl shadow-burgundy/30">
+                <!-- Decorative BG -->
+                <div class="absolute top-0 left-0 w-full h-full overflow-hidden opacity-20 pointer-events-none">
+                    <div class="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-yellow blur-3xl"></div>
+                    <div class="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-black blur-3xl"></div>
+                </div>
+
+                <div class="relative z-10 max-w-2xl mx-auto">
+                    <h2 class="text-3xl md:text-5xl font-black mb-6">Готовы начать охоту?</h2>
+                    <p class="text-lg text-white/80 mb-10">
+                        Присоединяйтесь к сообществу ценителей редких вещей. Участвуйте в торгах или выставляйте свои сокровища.
+                    </p>
+
+                    <!-- Кнопка "Начать сейчас" с проверкой авторизации -->
+                    <button @onclick="HandleStartNowClick"
+                            class="px-10 py-4 rounded-xl font-bold text-lg transition-all hover:-translate-y-1 btn-gold">
+                        Начать сейчас
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+@if (ShowCreateModal && UserService.CurrentUser != null)
+{
+    <div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" @onclick="() => ShowCreateModal = false">
+        <div class="bg-white rounded-2xl w-full max-w-2xl overflow-hidden border-4 border-yellow shadow-2xl animate-fade-in-up" @onclick:stopPropagation>
+            <div class="bg-burgundy p-6 text-white relative overflow-hidden">
+                <div class="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                <h2 class="text-2xl font-black relative z-10">Создать лот</h2>
+                <p class="text-white/70 text-sm relative z-10">Заполните форму для размещения вашего товара</p>
+            </div>
+            <EditForm Model="@createModel" OnValidSubmit="@SubmitCreate">
+                <DataAnnotationsValidator />
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-burgundy mb-2">Название товара</label>
+                        <InputText class="w-full px-4 py-3 rounded-xl bg-white border-2 border-burgundy/10 text-burgundy font-bold focus:border-yellow focus:outline-none transition-colors"
+                                   maxlength="100" @bind-Value="createModel.Title" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-burgundy mb-2">Краткое описание</label>
+                        <InputTextArea class="w-full px-4 py-3 rounded-xl bg-white border-2 border-burgundy/10 text-burgundy font-bold focus:border-yellow focus:outline-none transition-colors"
+                                       maxlength="500" rows="4" @bind-Value="createModel.Description" />
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-burgundy mb-2">Категория</label>
+                            <select class="w-full px-4 py-3 rounded-xl bg-white border-2 border-burgundy/10 text-burgundy font-bold focus:border-yellow focus:outline-none transition-colors"
+                                    @bind="createModel.Category">
+                                @foreach (var c in CategoriesOptions)
+                                {
+                                    <option value="@c">@c</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-burgundy mb-2">Стартовая цена</label>
+                            <InputNumber class="w-full px-4 py-3 rounded-xl bg-white border-2 border-burgundy/10 text-burgundy font-bold focus:border-yellow focus:outline-none transition-colors"
+                                         @bind-Value="createModel.StartPrice" />
+                        </div>
+                    </div>
+                    <div class="p-4 rounded-xl bg-burgundy/5 border border-burgundy/10">
+                        <div class="flex items-end gap-3 mb-3">
+                            <div class="flex-1">
+                                <label class="block text-sm font-bold text-burgundy mb-2">Тег</label>
+                                <div class="relative">
+                                    <InputText class="w-full px-4 py-3 rounded-xl bg-white border-2 border-burgundy/10 text-burgundy font-bold focus:border-yellow focus:outline-none transition-colors"
+                                               @bind-Value="_tagInput" @oninput="OnTagInputChanged" />
+                                    @if (_createSuggestions.Count > 0)
+                                    {
+                                        <div class="absolute z-20 bg-white border border-burgundy/10 rounded-xl mt-1 w-full max-h-60 overflow-auto shadow-lg">
+                                            @foreach (var s in _createSuggestions)
+                                            {
+                                                <button type="button" class="w-full text-left px-3 py-2 hover:bg-burgundy/5" @onclick="() => SelectCreateSuggestion(s)">@s</button>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            <button type="button" class="px-6 py-3 rounded-xl font-bold text-white bg-burgundy hover:bg-burgundy/90 transition-colors"
+                                    @onclick="AddTagInput">
+                                Добавить тег
+                            </button>
+                        </div>
+                        @if (_createError != "")
+                        {
+                            <div class="mb-2 p-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 text-sm font-bold">@_createError</div>
+                        }
+                        @if (_tagItems.Count > 0)
+                        {
+                            <div class="flex flex-wrap gap-2">
+                                @foreach (var t in _tagItems)
+                                {
+                                    <div class="flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm @(t.Exists ? "border-green-300 bg-green-50 text-green-700" : "border-burgundy/20 bg-white text-burgundy")">
+                                        <span>@t.Name</span>
+                                        <button type="button" class="ml-1 text-burgundy/60 hover:text-burgundy" @onclick="() => RemoveTagItem(t)">×</button>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        <div class="text-xs text-burgundy/60 mt-2">Новые теги отправляются на модерацию. Одобренные ранее теги используются сразу, но их применение к лоту проверяется администратором.</div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-burgundy mb-2">Длительность аукциона</label>
+                            <select class="w-full px-4 py-3 rounded-xl bg-white border-2 border-burgundy/10 text-burgundy font-bold focus:border-yellow focus:outline-none transition-colors"
+                                    @bind="createModel.DurationHours">
+                                @foreach (var h in DurationOptions)
+                                {
+                                    <option value="@h">@h ч</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="charity" class="w-5 h-5" @bind="createIsCharitable" />
+                            <label for="charity" class="text-burgundy font-bold">Благотворительный аукцион (10%)</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-burgundy mb-2">Фото товара (JPG/PNG, до 350 КБ)</label>
+                        <InputFile OnChange="OnFileChange" accept=".jpg,.jpeg,.png" />
+                        @if (!string.IsNullOrEmpty(PreviewImage))
+                        {
+                            <img src="@PreviewImage" alt="preview" class="mt-3 w-full h-60 object-cover rounded-xl border border-burgundy/10" />
+                        }
+                    </div>
+                    @if (!string.IsNullOrEmpty(CreateError))
+                    {
+                        <div class="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 font-bold text-sm">@CreateError</div>
+                    }
+                    <div class="flex items-center justify-end gap-3 pt-2">
+                        <button type="button" class="px-6 py-3 rounded-xl font-bold text-burgundy/70 hover:text-burgundy hover:bg-burgundy/5 transition-colors"
+                                @onclick="() => ShowCreateModal = false">
+                            Отмена
+                        </button>
+                        <button type="submit" class="px-8 py-3 rounded-xl font-bold text-white shadow-lg hover:shadow-yellow/20 transform hover:-translate-y-0.5 transition-all"
+                                style="background-color: #682021;">
+                            Отправить на рассмотрение
+                        </button>
+                    </div>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private const long MaxAuctionImageBytes = 350 * 1024;
+    private List<Auction> allAuctions = new();
+    private string? selectedCategory;
+    private string? hoveredCategory;
+    private bool ShowCreateModal = false;
+    private List<CategorySalesStat> currentStats = new();
+    private SalesPeriod selectedSalesPeriod = SalesPeriod.Month;
+    private string _filterTagInput = string.Empty;
+    private List<string> _filterSuggestions = new();
+    private HashSet<string> _selectedFilterTags = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, int> _relevance = new();
+    private string _lotSearchQuery = string.Empty;
+    private bool _matchAllSelectedTags = false;
+    private string _sortMode = "relevance";
+
+    private void UpdateStats(SalesPeriod period)
+    {
+        selectedSalesPeriod = period;
+        currentStats = BuildCategorySalesStats(period);
+        StateHasChanged();
+    }
+    private string? PreviewImage;
+    private string CreateError = string.Empty;
+    private CreateAuctionModel createModel = new();
+    private bool createIsCharitable = false;
+    private readonly string[] CategoriesOptions = new[] { "Часы", "Антиквариат", "Книги", "Искусство", "Украшения", "Этнос", "Мебель", "История", "Музыка", "Оружие" };
+    private readonly int[] DurationOptions = new[] { 1, 3, 6, 12, 18, 23 };
+    private readonly Dictionary<string, string> _categoryColors = new()
+    {
+        ["Часы"] = "#682021",
+        ["Антиквариат"] = "#8b2d2e",
+        ["Книги"] = "#a43a3c",
+        ["Искусство"] = "#bf4a4c",
+        ["Украшения"] = "#d55c5e",
+        ["Этнос"] = "#e47b57",
+        ["Мебель"] = "#ef9c5e",
+        ["История"] = "#efd867",
+        ["Музыка"] = "#93c5fd",
+        ["Оружие"] = "#60a5fa"
+    };
+
+    private List<Auction> FilteredAuctions
+    {
+        get
+        {
+            var query = allAuctions.AsEnumerable();
+
+            if (!string.IsNullOrEmpty(selectedCategory))
+                query = query.Where(a => a.Category == selectedCategory);
+
+            if (!string.IsNullOrWhiteSpace(_lotSearchQuery))
+            {
+                var search = _lotSearchQuery.Trim();
+                query = query.Where(a =>
+                    a.Title.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    a.Description.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    a.Category.Contains(search, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var list = ApplyTagFilterIfAny(query.ToList());
+            return SortAuctions(list);
+        }
+    }
+
+    private List<Auction> ApplyTagFilterIfAny(List<Auction> baseList)
+    {
+        if (_selectedFilterTags.Count == 0)
+            return baseList;
+        var filtered = Platform.TagService.FilterAuctionsByTags(_selectedFilterTags.ToList(), out _relevance, _matchAllSelectedTags);
+        var allowedIds = baseList.Select(a => a.Id).ToHashSet();
+        filtered = filtered.Where(a => allowedIds.Contains(a.Id)).ToList();
+        return filtered;
+    }
+
+    private List<Auction> SortAuctions(List<Auction> auctions)
+    {
+        return _sortMode switch
+        {
+            "newest" => auctions.OrderByDescending(a => a.StartedAt).ToList(),
+            "price_desc" => auctions.OrderByDescending(a => a.CurrentBid).ToList(),
+            "price_asc" => auctions.OrderBy(a => a.CurrentBid).ToList(),
+            "popular" => auctions.OrderByDescending(a => a.ViewsCount).ThenByDescending(a => a.BidsCount).ToList(),
+            _ => auctions
+                .OrderByDescending(a => _relevance.TryGetValue(a.Id, out var score) ? score : 0)
+                .ThenByDescending(a => a.ViewsCount)
+                .ToList()
+        };
+    }
+
+    private void FilterBy(string? category)
+    {
+        selectedCategory = category;
+        StateHasChanged();
+    }
+    private void UpdateTagSuggestions(ChangeEventArgs _)
+    {
+        _filterSuggestions = Platform.TagService.GetAutocompleteSuggestions(_filterTagInput, limit: 8, minUsage: 0);
+    }
+    private void HandleFilterTagInputKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            AddFilterTag(_filterTagInput);
+        }
+    }
+    private void AddFilterTag(string tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag)) return;
+        _selectedFilterTags.Add(tag.Trim());
+        _filterTagInput = string.Empty;
+        _filterSuggestions.Clear();
+    }
+    private void RemoveFilterTag(string tag)
+    {
+        _selectedFilterTags.Remove(tag);
+    }
+    private void ApplyTagFilter()
+    {
+        if (!string.IsNullOrWhiteSpace(_filterTagInput))
+        {
+            AddFilterTag(_filterTagInput);
+        }
+
+        Platform.TagService.RecordTagQuery(_selectedFilterTags);
+        allAuctions = Platform.AuctionService.GetActiveAuctions();
+        StateHasChanged();
+    }
+    private void ClearAllFilters()
+    {
+        _lotSearchQuery = string.Empty;
+        _filterTagInput = string.Empty;
+        _filterSuggestions.Clear();
+        _selectedFilterTags.Clear();
+        _relevance.Clear();
+        _matchAllSelectedTags = false;
+        _sortMode = "relevance";
+        selectedCategory = null;
+        allAuctions = Platform.AuctionService.GetActiveAuctions();
+        StateHasChanged();
+    }
+    private void SetTagMatchMode(bool matchAll)
+    {
+        _matchAllSelectedTags = matchAll;
+        StateHasChanged();
+    }
+    private string GetFilterModeClass(bool matchAll) =>
+        $"px-5 py-3 rounded-2xl font-bold border-2 transition-colors {(matchAll == _matchAllSelectedTags ? "bg-burgundy text-white border-burgundy" : "bg-white text-burgundy border-burgundy/10")}";
+    private List<string> GetSearchDiscoveryTags() =>
+        Platform.TagService.GetTrendingTags(minUsage: 0, top: 10).Select(t => t.Name).ToList();
+    private List<string> GetAuctionPreviewTags(string auctionId) =>
+        Platform.TagService.GetApprovedTagNamesForAuction(auctionId).Take(4).ToList();
+    private async Task SaveCurrentFilterSet()
+    {
+        if (UserService.CurrentUser == null || _selectedFilterTags.Count == 0) return;
+        var name = $"Набор {DateTime.Now:HH:mm}";
+        UserService.CurrentUser.SavedTagFilters ??= new();
+        UserService.CurrentUser.SavedTagFilters.Add(new SavedTagFilterSet
+        {
+            Name = name,
+            Tags = _selectedFilterTags.ToList(),
+            CreatedAt = DateTime.Now
+        });
+        Platform.SaveState();
+        await Task.Yield();
+    }
+    private void ApplySavedFilterSet(ChangeEventArgs e)
+    {
+        var id = e.Value?.ToString();
+        if (string.IsNullOrEmpty(id) || UserService.CurrentUser?.SavedTagFilters == null) return;
+        var set = UserService.CurrentUser.SavedTagFilters.FirstOrDefault(s => s.Id == id);
+        if (set == null) return;
+        _selectedFilterTags = new HashSet<string>(set.Tags ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+        ApplyTagFilter();
+    }
+
+    // Новый метод для обработки нажатия на кнопку "Начать сейчас"
+    private void HandleStartNowClick()
+    {
+        if (UserService.CurrentUser == null)
+        {
+            UserService.RequestLogin();
+        }
+        else
+        {
+            // Если пользователь авторизован, открываем модалку создания лота
+            OpenCreateAuction();
+        }
+    }
+
+    private void OpenCreateAuction()
+    {
+        CreateError = string.Empty;
+        createIsCharitable = false;
+        ShowCreateModal = true;
+    }
+
+    protected override void OnInitialized()
+    {
+        allAuctions = Platform.AuctionService.GetActiveAuctions();
+        currentStats = BuildCategorySalesStats(selectedSalesPeriod);
+        UserService.OnAuthStateChanged += StateHasChanged;
+
+        var uri = new Uri(Nav.Uri);
+        var query = uri.Query.TrimStart('?');
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var queryParams = query.Split('&', StringSplitOptions.RemoveEmptyEntries)
+                .Select(part => part.Split('=', 2))
+                .Where(parts => parts.Length == 2)
+                .ToDictionary(parts => Uri.UnescapeDataString(parts[0]), parts => Uri.UnescapeDataString(parts[1]));
+
+            if (queryParams.TryGetValue("tag", out var tag) && !string.IsNullOrWhiteSpace(tag))
+            {
+                AddFilterTag(tag);
+                ApplyTagFilter();
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        UserService.OnAuthStateChanged -= StateHasChanged;
+    }
+
+    private string FormatTimeRemaining(TimeSpan time)
+    {
+        if (time.TotalSeconds < 0)
+            return "Завершен";
+
+        if (time.TotalDays >= 1)
+            return $"{(int)time.TotalDays}д {time.Hours}ч";
+
+        if (time.TotalHours >= 1)
+            return $"{(int)time.TotalHours}ч {time.Minutes}м";
+
+        return $"{time.Minutes}м";
+    }
+
+    private async Task OnFileChange(InputFileChangeEventArgs e)
+    {
+        CreateError = string.Empty;
+        var file = e.File;
+        if (file == null) return;
+        if (file.Size > MaxAuctionImageBytes)
+        {
+            CreateError = "Размер файла превышает 350 КБ. Выберите более сжатое изображение.";
+            return;
+        }
+        var buffer = new byte[(int)file.Size];
+        await file.OpenReadStream(maxAllowedSize: MaxAuctionImageBytes).ReadAsync(buffer);
+        var base64 = Convert.ToBase64String(buffer);
+        var ext = file.ContentType; // image/jpeg or image/png
+        PreviewImage = $"data:{ext};base64,{base64}";
+        createModel.ImageDataUrl = PreviewImage;
+    }
+
+    private async Task SubmitCreate()
+    {
+        CreateError = string.Empty;
+        if (UserService.CurrentUser == null)
+        {
+            UserService.RequestLogin();
+            return;
+        }
+
+        // Проверка на ограничения от админа
+        if (UserService.CurrentUser.IsRestricted)
+        {
+            CreateError = UserService.CurrentUser.RestrictionMessage ?? "Ваш доступ временно ограничен администрацией.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(createModel.Title) || string.IsNullOrWhiteSpace(createModel.Description))
+        {
+            CreateError = "Заполните название и описание";
+            return;
+        }
+        if (string.IsNullOrEmpty(createModel.ImageDataUrl))
+        {
+            CreateError = "Добавьте фото товара";
+            return;
+        }
+        if (createModel.StartPrice <= 0)
+        {
+            CreateError = "Стартовая цена должна быть больше 0";
+            return;
+        }
+        foreach (var t in _tagItems)
+        {
+            var validationError = Platform.TagService.ValidateTagDraft(
+                UserService.CurrentUser.Id,
+                t.Name,
+                _tagItems.Where(x => !ReferenceEquals(x, t)).Select(x => x.Name));
+            if (!string.IsNullOrWhiteSpace(validationError))
+            {
+                CreateError = $"Ошибка в теге \"{t.Name}\": {validationError}";
+                return;
+            }
+        }
+        var category = string.IsNullOrWhiteSpace(createModel.Category) ? "Антиквариат" : createModel.Category;
+        var auction = Platform.AuctionService.CreateAuction(
+            UserService.CurrentUser.Id,
+            createModel.Title,
+            createModel.Description,
+            category,
+            createModel.StartPrice,
+            TimeSpan.FromHours(createModel.DurationHours <= 0 ? 6 : createModel.DurationHours),
+            createModel.ImageDataUrl!,
+            isFeatured: false,
+            isCharitable: createIsCharitable,
+            charityPercent: createIsCharitable ? 10 : 0,
+            seller: UserService.CurrentUser
+        );
+        foreach (var t in _tagItems)
+        {
+            Platform.TagService.AttachTagToAuction(UserService.CurrentUser.Id, auction.Id, t.Name, category);
+        }
+
+        // Уведомления
+        Platform.NotificationService.NotifyAuctionCreated(UserService.CurrentUser.Id, auction.Title);
+        Platform.NotificationService.NotifyAdminNewAuction(UserService.CurrentUser.FullName, auction.Title);
+
+        // Отправка на почту администратору
+        try
+        {
+            await Platform.EmailService.SendEmailAsync(
+                "Handal Platform", // Имя отправителя
+                "leraborovik2008@gmail.com",
+                "Новый лот на рассмотрение",
+                $"Пользователь {UserService.CurrentUser.FullName} отправил товар \"{auction.Title}\" на рассмотрение.");
+        }
+        catch { /* Игнорируем ошибки почты в демо */ }
+
+        Platform.SaveState();
+        allAuctions = Platform.AuctionService.GetActiveAuctions();
+        ShowCreateModal = false;
+        PreviewImage = null;
+        createIsCharitable = false;
+        createModel = new();
+        _tagItems.Clear();
+        _tagInput = string.Empty;
+        StateHasChanged();
+    }
+
+    private class CreateAuctionModel
+    {
+        [Required, MaxLength(100)]
+        public string Title { get; set; } = string.Empty;
+        [Required, MaxLength(500)]
+        public string Description { get; set; } = string.Empty;
+        public string Category { get; set; } = "Антиквариат";
+        [Range(1, double.MaxValue)]
+        public decimal StartPrice { get; set; } = 100;
+        public int DurationHours { get; set; } = 6;
+        public bool IsCharitable { get; set; } = false;
+        public string? ImageDataUrl { get; set; }
+    }
+
+    private string _tagInput = string.Empty;
+    private List<TagInputItem> _tagItems = new();
+    private List<string> _createSuggestions = new();
+    private string _createError = string.Empty;
+    private void AddTagInput()
+    {
+        var name = Platform.TagService.CanonicalizeTagName(_tagInput ?? string.Empty);
+        _createError = string.Empty;
+        if (string.IsNullOrWhiteSpace(name)) { _createSuggestions.Clear(); return; }
+        if (_tagItems.Count >= 10) { _createError = "Достигнут лимит тегов (10)"; return; }
+        var validationError = Platform.TagService.ValidateTagDraft(
+            UserService.CurrentUser?.Id ?? string.Empty,
+            name,
+            _tagItems.Select(x => x.Name));
+        if (!string.IsNullOrWhiteSpace(validationError))
+        {
+            _createError = validationError;
+            return;
+        }
+        var exists = Platform.TagService.HasApprovedDefinition(name);
+        _tagItems.Add(new TagInputItem { Name = name, Exists = exists });
+        _tagInput = string.Empty;
+        _createSuggestions.Clear();
+    }
+    private void RemoveTagItem(TagInputItem item)
+    {
+        _tagItems.Remove(item);
+    }
+    private void SelectCreateSuggestion(string s)
+    {
+        _tagInput = s;
+        AddTagInput();
+    }
+    private void OnTagInputChanged(ChangeEventArgs e)
+    {
+        _tagInput = e.Value?.ToString() ?? string.Empty;
+        _createSuggestions = Platform.TagService.GetAutocompleteSuggestions(_tagInput, limit: 8, minUsage: 0);
+    }
+    private sealed class TagInputItem
+    {
+        public string Name { get; set; } = string.Empty;
+        public bool Exists { get; set; }
+    }
+
+    private List<CategorySalesStat> BuildCategorySalesStats(SalesPeriod period)
+    {
+        var multiplier = period == SalesPeriod.Month ? 1000 : 16000;
+
+        // 1. Получаем реальную историю всех завершенных аукционов из сервиса
+        var realHistory = Platform.AuctionService.GetAllHistory()
+            .Where(h => h.FinalStatus == AuctionStatus.Completed)
+            .ToList();
+
+        // 2. Группируем реальную историю по категориям
+        var realGrouped = realHistory
+            .GroupBy(h => string.IsNullOrWhiteSpace(h.Auction?.Category) ? "Антиквариат" : h.Auction!.Category)
+            .ToDictionary(
+                g => g.Key,
+                g => new
+                {
+                    Count = g.Count(),
+                    Total = g.Sum(x => x.FinalPrice),
+                    Max = g.Max(x => x.FinalPrice)
+                });
+
+        var stats = new List<CategorySalesStat>();
+
+        foreach (var category in CategoriesOptions)
+        {
+            // Используем хеш названия категории для детерминированного рандома (базовая системная статистика)
+            var seed = category.GetHashCode() + (period == SalesPeriod.Month ? 1 : 2);
+            var rnd = new Random(seed);
+
+            // Базовые системные показатели
+            int systemCount = rnd.Next(2, 5) * multiplier;
+
+            decimal baseAvgPrice = category switch
+            {
+                "Искусство" => 85000m,
+                "Украшения" => 45000m,
+                "Оружие" => 62000m,
+                "Часы" => 28000m,
+                "Антиквариат" => 35000m,
+                "Книги" => 12000m,
+                "Этнос" => 22000m,
+                "Мебель" => 48000m,
+                "История" => 31000m,
+                "Музыка" => 18000m,
+                _ => 25000m
+            };
+            baseAvgPrice = baseAvgPrice * (decimal)(0.9 + rnd.NextDouble() * 0.2);
+
+            // 3. Добавляем реальный вклад пользователя к системным данным
+            int userSalesCount = 0;
+            decimal userTotalSales = 0;
+            decimal userMaxPrice = 0;
+
+            if (realGrouped.TryGetValue(category, out var realData))
+            {
+                // Каждый завершенный лот пользователя вносит вклад, умноженный на коэффициент масштаба
+                userSalesCount = realData.Count * (multiplier / 10); // Масштабируем вклад пользователя
+                userTotalSales = realData.Total * (multiplier / 10);
+                userMaxPrice = realData.Max;
+            }
+
+            int finalSalesCount = systemCount + userSalesCount;
+            decimal finalTotalSales = (systemCount * baseAvgPrice) + userTotalSales;
+            decimal finalAvgPrice = finalSalesCount > 0 ? finalTotalSales / finalSalesCount : baseAvgPrice;
+            decimal finalMaxPrice = Math.Max(baseAvgPrice * (decimal)(2.5 + rnd.NextDouble() * 5.0), userMaxPrice);
+
+            stats.Add(new CategorySalesStat
+            {
+                Category = category,
+                SalesCount = finalSalesCount,
+                TotalSales = finalTotalSales,
+                AveragePrice = Math.Round(finalAvgPrice, 0),
+                MaxPrice = Math.Round(finalMaxPrice, 0)
+            });
+        }
+
+        var totalVolume = stats.Sum(s => s.TotalSales);
+        foreach (var stat in stats)
+        {
+            stat.SharePercent = totalVolume > 0 ? Math.Round(stat.TotalSales / totalVolume * 100m, 2) : 0;
+        }
+
+        return stats.OrderByDescending(s => s.SalesCount).ToList();
+    }
+
+    private string GetCategoryColor(string category)
+    {
+        return _categoryColors.TryGetValue(category, out var color) ? color : "#682021";
+    }
+
+    private string BuildPieGradient(List<CategorySalesStat> stats)
+    {
+        var active = stats.Where(s => s.SharePercent > 0).OrderByDescending(s => s.SharePercent).ToList();
+        if (active.Count == 0)
+            return "conic-gradient(#f3f4f6 0 100%)";
+
+        var parts = new List<string>();
+        decimal current = 0;
+        foreach (var stat in active)
+        {
+            var next = current + stat.SharePercent;
+            parts.Add($"{GetCategoryColor(stat.Category)} {current.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}% {next.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}%");
+            current = next;
+        }
+        if (current < 100)
+        {
+            parts.Add($"#f3f4f6 {current.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}% 100%");
+        }
+        return $"conic-gradient({string.Join(", ", parts)})";
+    }
+
+    private enum SalesPeriod
+    {
+        Month,
+        Year
+    }
+
+    private sealed class CategorySalesStat
+    {
+        public string Category { get; set; } = string.Empty;
+        public int SalesCount { get; set; }
+        public decimal TotalSales { get; set; }
+        public decimal AveragePrice { get; set; }
+        public decimal MaxPrice { get; set; }
+        public decimal SharePercent { get; set; }
+    }
+}

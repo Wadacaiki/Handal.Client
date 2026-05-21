@@ -1,0 +1,15 @@
+{
+  "name": "handal-client",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev:css": "tailwindcss -i ./wwwroot/css/tailwind.css -o ./wwwroot/css/tailwind.generated.css --watch",
+    "build:css": "tailwindcss -i ./wwwroot/css/tailwind.css -o ./wwwroot/css/tailwind.generated.css",
+    "postinstall": "echo tailwind postinstall"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.14",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49"
+  }
+}

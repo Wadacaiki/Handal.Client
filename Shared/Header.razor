@@ -1,0 +1,225 @@
+@inject UserService UserService
+@inject NotificationService NotificationService
+@inject AuctionPlatformService PlatformService
+
+<div class="container mx-auto px-4 lg:px-8">
+  <div class="flex items-center justify-between h-20">
+    <!-- Logo -->
+    <a href="/" class="flex items-center gap-3 no-underline group">
+      <img src="/images/logo.svg" alt="Handal" class="w-12 h-auto group-hover:scale-105 transition-transform duration-300" />
+      <div class="hidden sm:block">
+        <span class="text-xl font-black text-burgundy tracking-tight">HANDAL</span>
+        <p class="text-xs text-burgundy/60 m-0 font-medium">Торговая платформа</p>
+      </div>
+    </a>
+
+    <!-- Navigation -->
+    <nav class="hidden md:flex items-center gap-8">
+      <a href="/#auctions" class="text-sm font-bold text-burgundy/80 hover:text-burgundy transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-0.5 after:bg-yellow after:transition-all hover:after:w-full">
+        Аукционы
+      </a>
+      <a href="/#categories" class="text-sm font-bold text-burgundy/80 hover:text-burgundy transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-0.5 after:bg-yellow after:transition-all hover:after:w-full">
+        Категории
+      </a>
+      <a href="/#about" class="text-sm font-bold text-burgundy/80 hover:text-burgundy transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-0.5 after:bg-yellow after:transition-all hover:after:w-full">
+        О нас
+      </a>
+    </nav>
+
+    <!-- Right section -->
+    <div class="flex items-center gap-4">
+        <a href="/notifications" class="relative group">
+          <button class="p-2 text-burgundy/70 hover:text-burgundy hover:bg-yellow/10 rounded-full transition-all" title="Уведомления">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+          </button>
+          @if (UserService.CurrentUser is not null)
+          {
+            var unread = NotificationService.GetUnreadCount(UserService.CurrentUser.Id);
+            if (unread > 0)
+            {
+              <span class="absolute top-0 right-0 w-5 h-5 bg-yellow text-burgundy text-[10px] font-bold flex items-center justify-center rounded-full shadow-sm transform scale-100 group-hover:scale-110 transition-transform">@unread</span>
+            }
+          }
+        </a>
+        
+        <button class="p-2 text-burgundy/70 hover:text-burgundy hover:bg-yellow/10 rounded-full transition-all" title="Поиск"
+                @onclick="ToggleSearch">
+             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        </button>
+
+          @if (UserService.CurrentUser is null)
+          {
+              <button class="flex px-4 sm:px-5 py-2.5 rounded-xl font-bold bg-burgundy text-white hover:bg-burgundy/90 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                      @onclick="() => OnOpenAuthRequested()">
+                Войти
+              </button>
+          }
+          else
+          {
+              <div class="flex items-center gap-2 sm:gap-3 p-1.5 pr-3 sm:pr-4 rounded-full border border-burgundy/10 bg-burgundy/5 hover:border-burgundy/20 transition-colors">
+                  <div class="w-8 h-8 rounded-full bg-burgundy text-white flex items-center justify-center font-bold text-xs">
+                      @UserService.CurrentUser.FullName.Substring(0, 1)
+                  </div>
+                  <div class="hidden sm:flex flex-col items-start mr-2">
+                      <span class="text-burgundy font-bold text-sm leading-none mb-0.5">@UserService.CurrentUser.AvailableBalance.ToString("N0") гроши</span>
+                      <span class="text-[10px] text-burgundy/60 font-medium uppercase tracking-wider">Баланс</span>
+                  </div>
+                  <div class="hidden sm:block h-6 w-[1px] bg-burgundy/10 mx-1"></div>
+                  <a href="/profile" class="text-sm font-bold text-burgundy/70 hover:text-burgundy transition-colors">Профиль</a>
+                  <button class="text-sm font-bold text-burgundy/70 hover:text-black transition-colors" @onclick="Logout">Выход</button>
+              </div>
+          }
+        </div>
+
+    @if (SearchOpen)
+    {
+        <div class="fixed inset-0 z-50" @onclick="CloseSearch">
+            <div class="absolute top-24 left-1/2 -translate-x-1/2 w-full max-w-xl px-4" @onclick:stopPropagation>
+                <div class="bg-white rounded-2xl border-2 border-yellow shadow-2xl overflow-hidden">
+                    <div class="p-4 border-b border-burgundy/10 flex items-center gap-3">
+                        <input class="flex-1 px-4 py-3 rounded-xl bg-white border border-burgundy/20 text-burgundy placeholder-burgundy/40 focus:outline-none focus:ring-2 focus:ring-yellow focus:border-transparent transition-all font-bold"
+                               placeholder="Поиск по товарам..."
+                               value="@SearchQuery"
+                               @oninput="OnSearchInput" />
+                        <button class="p-2 rounded-xl text-burgundy/60 hover:text-burgundy hover:bg-yellow/10 transition-colors" @onclick="CloseSearch">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                    <div class="max-h-96 overflow-auto">
+                        @if (!string.IsNullOrWhiteSpace(SearchQuery) && SearchResults.Count == 0 && SimilarSearchResults.Count == 0)
+                        {
+                            <div class="p-4 text-burgundy/70 font-medium">Ничего не найдено</div>
+                        }
+                        else
+                        {
+                            @foreach (var a in SearchResults)
+                            {
+                                <a href="/auction/@a.Id" class="block px-4 py-3 hover:bg-yellow/10 transition-colors no-underline"
+                                   @onclick="CloseSearch">
+                                    <div class="flex items-center gap-3">
+                                        <img src="@a.Image" class="w-12 h-12 rounded-lg object-cover border border-burgundy/10" />
+                                        <div class="min-w-0">
+                                            <div class="font-black text-burgundy truncate">@a.Title</div>
+                                            <div class="text-xs text-burgundy/60 font-bold">@a.Category · @a.CurrentBid.ToString("N0") гроши</div>
+                                        </div>
+                                    </div>
+                                </a>
+                            }
+
+                            @if (SimilarSearchResults.Any())
+                            {
+                                <div class="px-4 py-2 bg-burgundy/5 border-y border-burgundy/10">
+                                    <span class="text-xs font-bold text-burgundy uppercase tracking-wider">Похожие лоты</span>
+                                </div>
+                                @foreach (var a in SimilarSearchResults)
+                                {
+                                    <a href="/auction/@a.Id" class="block px-4 py-3 hover:bg-yellow/10 transition-colors no-underline"
+                                       @onclick="CloseSearch">
+                                        <div class="flex items-center gap-3">
+                                            <img src="@a.Image" class="w-12 h-12 rounded-lg object-cover border border-burgundy/10 opacity-80" />
+                                            <div class="min-w-0">
+                                                <div class="font-black text-burgundy/80 truncate">@a.Title</div>
+                                                <div class="text-xs text-burgundy/50 font-bold">@a.Category · @a.CurrentBid.ToString("N0") гроши</div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                }
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+  @code {
+      [Parameter] public EventCallback OnOpenAuth { get; set; }
+      private bool SearchOpen { get; set; }
+      private string SearchQuery { get; set; } = string.Empty;
+      private List<Auction> SearchResults { get; set; } = new();
+      private List<Auction> SimilarSearchResults { get; set; } = new();
+
+      protected override void OnInitialized()
+      {
+        // Re-render header when auth state changes
+        UserService.OnAuthStateChanged += OnAuthChanged;
+      }
+
+      private void OnAuthChanged()
+      {
+        InvokeAsync(StateHasChanged);
+      }
+
+      private void Logout()
+      {
+        PlatformService.SaveState();
+        UserService.Logout();
+        PlatformService.SaveState();
+      }
+
+      private void ToggleSearch()
+      {
+        SearchOpen = !SearchOpen;
+        if (!SearchOpen)
+        {
+          SearchQuery = string.Empty;
+          SearchResults = new();
+          SimilarSearchResults = new();
+        }
+      }
+
+      private void CloseSearch()
+      {
+        SearchOpen = false;
+        SearchQuery = string.Empty;
+        SearchResults = new();
+        SimilarSearchResults = new();
+      }
+
+      private void OnSearchInput(ChangeEventArgs e)
+      {
+        SearchQuery = e.Value?.ToString() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(SearchQuery))
+        {
+          SearchResults = new();
+          SimilarSearchResults = new();
+          return;
+        }
+        var raw = PlatformService.SearchAuctions(SearchQuery);
+        var list = new List<Auction>();
+        var demoKeys = new HashSet<string>();
+        foreach (var a in raw)
+        {
+          if (!string.IsNullOrWhiteSpace(a.SellerId) && a.SellerId.StartsWith("seller-", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(a.Title))
+          {
+            var key = $"{a.SellerId}||{a.Title.Trim().ToLowerInvariant()}";
+            if (!demoKeys.Add(key)) continue;
+          }
+          list.Add(a);
+        }
+        SearchResults = list;
+
+        var categories = list.Select(a => a.Category).Distinct().ToList();
+        var searchWords = SearchQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(w => w.ToLowerInvariant()).ToList();
+        
+        SimilarSearchResults = PlatformService.AuctionService.GetActiveAuctions()
+            .Where(a => !list.Any(r => r.Id == a.Id) && 
+                        (categories.Contains(a.Category) || searchWords.Any(w => a.Title.ToLowerInvariant().Contains(w))))
+            .OrderBy(a => a.CurrentBid)
+            .Take(5)
+            .ToList();
+      }
+
+      private async Task OnOpenAuthRequested()
+      {
+        if (OnOpenAuth.HasDelegate)
+          await OnOpenAuth.InvokeAsync(null);
+      }
+
+      public void Dispose()
+      {
+        UserService.OnAuthStateChanged -= OnAuthChanged;
+      }
+  }
+  </div>
+</div>

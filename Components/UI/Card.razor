@@ -1,0 +1,27 @@
+@inherits CardBase
+
+<div class="@CssClass">
+    @if (Header is not null)
+    {
+        <div class="px-6 pt-6 pb-2">
+            @Header
+        </div>
+    }
+    @if (ChildContent is not null)
+    {
+        <div class="px-6 py-4">
+            @ChildContent
+        </div>
+    }
+    @if (Footer is not null)
+    {
+        <div class="px-6 pt-2 pb-6">
+            @Footer
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public RenderFragment? Header { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+}

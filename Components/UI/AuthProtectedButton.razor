@@ -1,0 +1,46 @@
+@inherits ComponentBase
+
+<button class="@CssClass" 
+        @onclick="HandleClick"
+        disabled="@Disabled"
+        type="@ButtonType">
+    @ChildContent
+</button>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public bool Disabled { get; set; } = false;
+    [Parameter] public string ButtonType { get; set; } = "button";
+    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+    [Parameter] public bool RequireAuthentication { get; set; } = true;
+    [Parameter] public string GuestModeText { get; set; } = "Войти для участия";
+    [Parameter] public string AuthenticatedText { get; set; } = "";
+    [Parameter] public string AuthMode { get; set; } = "login";
+
+    [Inject] private UserService? UserService { get; set; }
+
+    private string DisplayText => string.IsNullOrEmpty(AuthenticatedText) 
+        ? (GuestContent ?? ChildContent)?.ToString() ?? ""
+        : (IsAuthenticated ? AuthenticatedText : GuestModeText);
+
+    private RenderFragment? GuestContent => RequireAuthentication && !IsAuthenticated 
+        ? @<span>@GuestModeText</span> 
+        : ChildContent;
+
+    private bool IsAuthenticated => UserService?.CurrentUser != null;
+
+    private async Task HandleClick(MouseEventArgs args)
+    {
+        if (RequireAuthentication && !IsAuthenticated)
+        {
+            UserService?.RequestLogin(AuthMode);
+            return;
+        }
+
+        if (OnClick.HasDelegate)
+        {
+            await OnClick.InvokeAsync(args);
+        }
+    }
+}

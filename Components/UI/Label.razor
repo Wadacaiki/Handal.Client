@@ -1,0 +1,14 @@
+@using Microsoft.AspNetCore.Components
+
+<label class="@CssClass">@ChildContent</label>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string CssClass => string.Join(" ", new[]
+    {
+        "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+        Class
+    }.Where(s => !string.IsNullOrWhiteSpace(s)));
+}

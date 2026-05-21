@@ -1,0 +1,733 @@
+@page "/admin"
+@using Handal.Client.Models
+@inject AuctionPlatformService Platform
+@inject UserService UserService
+@inject NavigationManager Nav
+
+<div class="min-h-screen auction-hall-bg flex font-sans text-burgundy admin-page">
+    @if (!IsAuthenticated)
+    {
+        <!-- Новая форма входа в стиле сайта -->
+        <div class="flex-grow flex items-center justify-center p-6 relative overflow-hidden admin-auth-shell">
+            <!-- Фоновые декорации -->
+            <div class="absolute inset-0 overflow-hidden pointer-events-none">
+                <div class="absolute -top-[25%] -right-[10%] w-[800px] h-[800px] rounded-full blur-3xl opacity-20" style="background: radial-gradient(circle, rgba(239,216,103,0.3) 0%, rgba(239,216,103,0.05) 60%, transparent 70%);"></div>
+                <div class="absolute top-[45%] -left-[15%] w-[600px] h-[600px] rounded-full blur-3xl opacity-30" style="background: radial-gradient(circle, rgba(104,32,33,0.45) 0%, rgba(104,32,33,0.1) 60%, transparent 70%);"></div>
+            </div>
+
+            <div class="w-full max-w-[480px] relative z-10 admin-login-wrap">
+                <div class="bg-white rounded-3xl shadow-2xl border-4 border-yellow overflow-hidden animate-fade-in-up">
+                    <div class="bg-burgundy p-8 text-center relative overflow-hidden">
+                        <div class="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                        <div class="flex justify-center mb-4">
+                            <div class="w-16 h-16 bg-yellow rounded-2xl flex items-center justify-center shadow-lg transform -rotate-3 hover:rotate-0 transition-transform duration-300">
+                                <svg class="w-8 h-8 text-burgundy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <h1 class="text-2xl font-black text-white tracking-tight uppercase">Панель управления</h1>
+                        <p class="text-yellow/70 text-xs font-bold uppercase tracking-widest mt-1">Авторизация администратора</p>
+                    </div>
+
+                    <div class="p-8 md:p-10 space-y-6">
+                        <div>
+                            <label class="block text-xs font-black text-burgundy/60 uppercase tracking-widest mb-2">Логин доступа</label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-burgundy/30">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                </span>
+                                <input type="text" @bind="Login"
+                                       class="w-full pl-12 pr-5 py-4 rounded-2xl bg-gray-50 border-2 border-burgundy/10 text-burgundy font-bold focus:border-yellow focus:bg-white focus:outline-none transition-all placeholder-burgundy/20 admin-login-input"
+                                       placeholder="Admin" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-black text-burgundy/60 uppercase tracking-widest mb-2">Секретный пароль</label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-burgundy/30">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                </span>
+                                <input type="password" @bind="Password"
+                                       class="w-full pl-12 pr-5 py-4 rounded-2xl bg-gray-50 border-2 border-burgundy/10 text-burgundy font-bold focus:border-yellow focus:bg-white focus:outline-none transition-all placeholder-burgundy/20 admin-login-input"
+                                       placeholder="••••••" />
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(Error))
+                        {
+                            <div class="p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-xs font-bold text-center animate-pulse">
+                                @Error
+                            </div>
+                        }
+
+                        <button @onclick="HandleLogin"
+                                class="w-full py-4 bg-burgundy text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-burgundy/20 hover:bg-burgundy/90 hover:-translate-y-0.5 transition-all">
+                            Войти в систему
+                        </button>
+
+                        <div class="text-center">
+                            <span class="inline-block px-3 py-1 rounded-full bg-burgundy/5 text-[9px] font-black text-burgundy/40 uppercase tracking-widest border border-burgundy/10">
+                                Защищенная зона • Только для администраторов
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Панель администратора -->
+        <aside class="w-80 bg-burgundy flex flex-col h-screen flex-shrink-0 shadow-2xl relative z-20 admin-sidebar">
+            <div class="p-8">
+                <div class="flex items-center gap-4 mb-12">
+                    <div class="w-12 h-12 bg-yellow rounded-2xl flex items-center justify-center text-burgundy font-black shadow-lg border-2 border-white/10 transform -rotate-3">AD</div>
+                    <div>
+                        <div class="font-black text-white text-base tracking-tight uppercase">Администратор</div>
+                        <div class="text-[9px] font-black text-yellow uppercase tracking-widest">Handal Control System</div>
+                    </div>
+                </div>
+
+                <nav class="space-y-3">
+                    <button @onclick='() => CurrentView = "pending"'
+                            class='w-full flex items-center justify-between px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all @(CurrentView == "pending" ? "bg-yellow text-burgundy shadow-xl translate-x-2" : "text-white/60 hover:text-white hover:bg-white/5")'>
+                        <div class="flex items-center gap-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                            <span>На модерации</span>
+                        </div>
+                        @if (PendingCount > 0)
+                        {
+                            <span class='w-6 h-6 flex items-center justify-center rounded-lg text-[10px] font-black @(CurrentView == "pending" ? "bg-burgundy text-white" : "bg-yellow text-burgundy")'>@PendingCount</span>
+                        }
+                    </button>
+
+                    <button @onclick='() => CurrentView = "approved"'
+                            class='w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all @(CurrentView == "approved" ? "bg-yellow text-burgundy shadow-xl translate-x-2" : "text-white/60 hover:text-white hover:bg-white/5")'>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        <span>Принятые лоты</span>
+                    </button>
+
+                    <button @onclick='() => CurrentView = "rejected"'
+                            class='w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all @(CurrentView == "rejected" ? "bg-yellow text-burgundy shadow-xl translate-x-2" : "text-white/60 hover:text-white hover:bg-white/5")'>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        <span>Отклоненные</span>
+                    </button>
+                </nav>
+            </div>
+
+            <div class="mt-auto p-8">
+                <button @onclick="Logout" class="w-full py-4 rounded-2xl bg-white/5 text-white/40 font-black text-[10px] uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all border border-white/5 group flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4 opacity-50 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    Выйти из системы
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-grow bg-[#fcfcfc] overflow-auto h-screen relative z-10 admin-main">
+            <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-md p-8 md:p-12 flex flex-col md:flex-row justify-between items-center border-b border-burgundy/5 gap-6 admin-main-header">
+                <div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="w-8 h-[2px] bg-yellow"></span>
+                        <span class="text-burgundy/60 font-black text-[10px] tracking-widest uppercase">Управление платформой</span>
+                    </div>
+                    <h1 class="text-4xl font-black text-burgundy tracking-tight">
+                        @(CurrentView switch { "pending" => "На модерации", "approved" => "Одобренные товары", "rejected" => "Отклоненные товары", _ => "" })
+                    </h1>
+                </div>
+
+                <div class="flex gap-4">
+                    <div class="px-8 py-3 bg-white border-2 border-yellow rounded-2xl shadow-sm flex flex-col items-center min-w-[140px]">
+                        <div class="text-[9px] font-black text-burgundy/40 uppercase tracking-widest mb-1">Всего лотов</div>
+                        <div class="text-2xl font-black text-burgundy">@Platform.AuctionService.GetAllAuctions().Count</div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="p-8 md:p-12 max-w-6xl mx-auto admin-main-content">
+                <div class="grid grid-cols-1 gap-8">
+                    @if (DisplayList.Count == 0)
+                    {
+                        <div class="py-40 text-center animate-pulse">
+                            <div class="w-20 h-20 bg-burgundy/5 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <svg class="w-10 h-10 text-burgundy/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                            </div>
+                            <div class="text-burgundy/20 font-black uppercase tracking-[0.4em] text-sm">В этой категории пока пусто</div>
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var auction in DisplayList)
+                        {
+                            var seller = Platform.UserService.GetUserById(auction.SellerId);
+                            var isRejected = CurrentView == "rejected";
+
+                            <div class='bg-white rounded-3xl p-6 border-2 transition-all duration-300 flex flex-col md:flex-row items-center gap-8 group admin-lot-card @(isRejected ? "border-red-100 hover:border-red-200" : "border-burgundy/5 hover:border-yellow/50 hover:shadow-2xl hover:shadow-burgundy/5 hover:-translate-y-1")'>
+                                <div class="w-full md:w-40 h-40 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0 cursor-pointer relative admin-lot-card__media" @onclick="() => OpenAuctionDetails(auction)">
+                                    <img src="@auction.Image" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                    <div class="absolute inset-0 bg-burgundy/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <span class="bg-white text-burgundy px-3 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl">Подробнее</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex-grow w-full admin-lot-card__body">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span class="px-2 py-0.5 bg-burgundy/5 text-burgundy/60 text-[9px] font-black uppercase tracking-widest rounded-lg border border-burgundy/5">@auction.Category</span>
+                                        @if (auction.IsCharitable)
+                                        {
+                                            <span class="px-2 py-0.5 bg-green-500/10 text-green-600 text-[9px] font-black uppercase tracking-widest rounded-lg border border-green-500/10">Благотворительность</span>
+                                        }
+                                        @if (auction.Status == AuctionStatus.Pending)
+                                        {
+                                            <span class="px-2 py-0.5 bg-yellow/20 text-burgundy text-[9px] font-black uppercase tracking-widest rounded-lg border border-yellow/30">@GetPendingLabel(auction)</span>
+                                        }
+                                    </div>
+                                    <h3 class="text-2xl font-black text-burgundy mb-4 tracking-tight">@auction.Title</h3>
+
+                                    <div class="flex flex-wrap items-center gap-6">
+                                        <div class="flex items-center gap-3 p-1.5 pr-4 rounded-full bg-burgundy/5 border border-burgundy/5 hover:border-yellow/30 transition-colors cursor-pointer" @onclick="() => ViewUserProfile(auction.SellerId)">
+                                            <div class="w-8 h-8 bg-burgundy text-white rounded-full flex items-center justify-center font-black text-xs">@(seller?.FullName?[0].ToString().ToUpper() ?? "?")</div>
+                                            <div>
+                                                <div class="text-[9px] font-black text-burgundy/40 uppercase tracking-widest leading-none mb-1">Продавец</div>
+                                                <div class="text-xs font-black text-burgundy">@(seller?.FullName ?? "Unknown")</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="h-8 w-px bg-burgundy/10 hidden md:block"></div>
+
+                                        <div>
+                                            <div class="text-[9px] font-black text-burgundy/40 uppercase tracking-widest leading-none mb-1">Стартовая цена</div>
+                                            <div class="text-sm font-black text-burgundy">@auction.StartPrice.ToString("N0") <span class="text-[10px] opacity-50">гроши</span></div>
+                                        </div>
+
+                                        <div>
+                                            <div class="text-[9px] font-black text-burgundy/40 uppercase tracking-widest leading-none mb-1">Дата подачи</div>
+                                            <div class="text-sm font-black text-burgundy">@auction.StartedAt.ToString("dd.MM.yyyy HH:mm")</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-row md:flex-col gap-3 w-full md:w-auto min-w-[180px] admin-lot-card__actions">
+                                    <button @onclick="() => OpenAuctionDetails(auction)"
+                                            class="flex-1 md:w-full py-4 bg-yellow/10 border-2 border-yellow/20 text-burgundy rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-yellow hover:border-yellow transition-all">
+                                        Подробнее
+                                    </button>
+
+                                    @if (auction.Status == AuctionStatus.Pending)
+                                    {
+                                        <button @onclick="() => HandleApprove(auction.Id)"
+                                                disabled="@(!CanApprove(auction))"
+                                                class="flex-1 md:w-full py-4 bg-burgundy text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-burgundy/10 hover:bg-burgundy/90 hover:-translate-y-0.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0">
+                                            Одобрить
+                                        </button>
+                                        <button @onclick="() => HandleReject(auction.Id)" class="flex-1 md:w-full py-4 bg-white border-2 border-burgundy/10 text-burgundy/60 rounded-2xl font-black text-xs uppercase tracking-widest hover:border-red-500 hover:text-red-500 transition-all">Отклонить</button>
+                                    }
+                                    else if (auction.Status == AuctionStatus.Active)
+                                    {
+                                        <div class="w-full py-4 text-center text-[10px] font-black uppercase tracking-widest text-green-600 bg-green-50 rounded-2xl border-2 border-green-100 flex items-center justify-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                            Активен
+                                        </div>
+                                    }
+                                    else if (auction.Status == AuctionStatus.Cancelled)
+                                    {
+                                        <div class="w-full py-4 text-center text-[10px] font-black uppercase tracking-widest text-red-400 bg-red-50 rounded-2xl border-2 border-red-100 flex items-center justify-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                            Отклонен
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </main>
+    }
+</div>
+
+<!-- Модальное окно деталей лота -->
+@if (SelectedAuction != null)
+{
+    <div class="fixed inset-0 flex items-center justify-center z-[100] p-4 bg-burgundy/40 backdrop-blur-md animate-fade-in" @onclick="() => SelectedAuction = null">
+        <div class="bg-white rounded-[32px] w-full max-w-5xl overflow-hidden shadow-2xl border-4 border-yellow flex flex-col md:flex-row animate-fade-in-up admin-auction-modal" @onclick:stopPropagation>
+            <div class="w-full md:w-1/2 bg-gray-100 h-96 md:h-auto relative admin-auction-modal__media">
+                <img src="@SelectedAuction.Image" class="w-full h-full object-cover" />
+                <div class="absolute inset-0 bg-gradient-to-t from-burgundy/40 to-transparent"></div>
+                <div class="absolute bottom-8 left-8">
+                    <span class="px-4 py-2 bg-yellow text-burgundy rounded-xl font-black text-xs uppercase tracking-widest shadow-xl">Проверка контента</span>
+                </div>
+            </div>
+
+            <div class="w-full md:w-1/2 p-8 md:p-14 flex flex-col admin-auction-modal__details">
+                <div class="flex-grow">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="w-8 h-[2px] bg-yellow"></span>
+                        <span class="text-burgundy/40 font-black text-xs uppercase tracking-widest">@SelectedAuction.Category</span>
+                    </div>
+                    <h2 class="text-4xl font-black text-burgundy mb-8 tracking-tight leading-tight">@SelectedAuction.Title</h2>
+                    <p class="text-burgundy/60 text-base leading-relaxed mb-10 bg-burgundy/5 p-6 rounded-2xl border border-burgundy/5 italic">
+                        "@SelectedAuction.Description"
+                    </p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
+                        <div class="bg-gray-50 rounded-2xl p-6 border-2 border-burgundy/5">
+                            <div class="text-[9px] font-black text-burgundy/30 uppercase tracking-widest mb-1">Стартовая цена</div>
+                            <div class="text-2xl font-black text-burgundy">@SelectedAuction.StartPrice.ToString("N0") <span class="text-xs opacity-50">гроши</span></div>
+                        </div>
+                        <div class="bg-gray-50 rounded-2xl p-6 border-2 border-burgundy/5 admin-auction-modal__type-card">
+                            <div class="text-[9px] font-black text-burgundy/30 uppercase tracking-widest mb-1">Тип аукциона</div>
+                            <div class="text-sm md:text-base font-black text-burgundy uppercase tracking-tight leading-tight break-words admin-auction-modal__type-value">@(SelectedAuction.IsCharitable ? "Благотворительный" : "Стандартный")</div>
+                        </div>
+                    </div>
+
+                    @if (SelectedAuction.Status == AuctionStatus.Pending)
+                    {
+                        <div class="mb-10 p-5 rounded-2xl border-2 border-yellow/30 bg-yellow/5 space-y-4">
+                            <div class="text-[10px] font-black text-burgundy/50 uppercase tracking-widest">Оценка лота администрацией</div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                                <div>
+                                    <div class="text-[9px] font-black text-burgundy/30 uppercase tracking-widest mb-2">Цена оценки</div>
+                                    <input type="number"
+                                           min="1"
+                                           @bind="AppraisalPriceInput"
+                                           class="w-full px-4 py-3 rounded-xl bg-white border-2 border-burgundy/10 text-burgundy font-black focus:border-yellow focus:outline-none" />
+                                </div>
+                                <button @onclick="async () => await HandleAppraise(SelectedAuction.Id)"
+                                        disabled="@(SelectedAuction.IsPriceLockedBySellerDecision)"
+                                        class="py-3 px-4 bg-yellow text-burgundy rounded-xl font-black text-xs uppercase tracking-widest hover:bg-yellow/80 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                                    Оценить
+                                </button>
+                            </div>
+                            @if (SelectedAuction.AppraisedPrice is not null)
+                            {
+                                <div class="text-sm font-bold text-burgundy">
+                                    Текущая оценка: @SelectedAuction.AppraisedPrice.Value.ToString("N0") грошей
+                                </div>
+                                <div class="text-xs text-burgundy/60">
+                                    Статус: @GetPendingLabel(SelectedAuction)
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @if (GetPendingAssignmentsForSelectedAuction().Any())
+                    {
+                        <div class="mb-10 p-5 rounded-2xl border border-burgundy/10 bg-slate-50">
+                            <div class="text-[10px] font-black text-burgundy/50 uppercase tracking-widest mb-4">Привязки тегов к этому лоту</div>
+                            <div class="space-y-3">
+                                @foreach (var assignment in GetPendingAssignmentsForSelectedAuction())
+                                {
+                                    var tag = Platform.TagService.GetAllTagDefinitions().FirstOrDefault(x => x.Id == assignment.TagDefinitionId);
+                                    <div class="p-4 rounded-2xl bg-white border border-burgundy/10">
+                                        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                            <div>
+                                                <div class="text-base font-black text-burgundy">@(tag?.Name ?? assignment.RawInput)</div>
+                                                <div class="text-sm text-burgundy/60">Категория: @assignment.Category</div>
+                                            </div>
+                                            <div class="flex flex-wrap gap-2">
+                                                <button class="px-3 py-2 rounded-xl bg-green-600 text-white text-xs font-bold" @onclick="() => ApproveAssignment(assignment)">Одобрить</button>
+                                                <button class="px-3 py-2 rounded-xl bg-red-600 text-white text-xs font-bold" @onclick="() => RejectAssignment(assignment)">Отклонить</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @if (SelectedAuction.Status == AuctionStatus.Pending)
+                {
+                    <div class="flex gap-4">
+                        <button @onclick="() => { HandleApprove(SelectedAuction.Id); SelectedAuction = null; }"
+                                disabled="@(!CanApprove(SelectedAuction))"
+                                class="flex-grow py-5 bg-burgundy text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-burgundy/20 hover:bg-burgundy/90 hover:-translate-y-1 transition-all flex items-center justify-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            ОДОБРИТЬ ЛОТ
+                        </button>
+                        <button @onclick="() => { HandleReject(SelectedAuction.Id); SelectedAuction = null; }"
+                                class="px-10 py-5 bg-white border-2 border-burgundy/10 text-burgundy/40 rounded-2xl font-black text-xs uppercase tracking-widest hover:border-red-500 hover:text-red-500 transition-all">
+                            ОТКЛОНИТЬ
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="flex-grow py-5 px-6 rounded-2xl border-2 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 @(SelectedAuction.Status == AuctionStatus.Active ? "bg-green-50 border-green-100 text-green-600" : "bg-red-50 border-red-100 text-red-400")">
+                            @if (SelectedAuction.Status == AuctionStatus.Active)
+                            {
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <span>Лот уже одобрен</span>
+                            }
+                            else
+                            {
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                <span>Лот отклонен</span>
+                            }
+                        </div>
+                        <button @onclick="() => SelectedAuction = null"
+                                class="px-10 py-5 bg-white border-2 border-burgundy/10 text-burgundy/50 rounded-2xl font-black text-xs uppercase tracking-widest hover:border-burgundy/30 hover:text-burgundy transition-all">
+                            Закрыть
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Профиль пользователя -->
+@if (SelectedUser != null)
+{
+    <div class="fixed inset-0 bg-burgundy/40 backdrop-blur-md flex items-center justify-center z-[110] p-4 animate-fade-in" @onclick="() => SelectedUser = null">
+        <div class="bg-white rounded-[40px] w-full max-w-lg overflow-hidden shadow-2xl border-4 border-yellow animate-fade-in-up" @onclick:stopPropagation>
+            <div class="bg-burgundy p-12 text-center relative overflow-hidden">
+                <!-- Декор -->
+                <div class="absolute -top-10 -left-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
+                <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-yellow/10 rounded-full blur-3xl"></div>
+
+                <div class="relative z-10">
+                    <div class="w-24 h-24 bg-yellow rounded-[32px] flex items-center justify-center mx-auto mb-6 text-4xl font-black text-burgundy shadow-2xl border-4 border-white/20 transform -rotate-6">
+                        @(string.IsNullOrEmpty(SelectedUser.FullName) ? "?" : SelectedUser.FullName[0].ToString().ToUpper())
+                    </div>
+                    <h2 class="text-3xl font-black text-white tracking-tight uppercase">@SelectedUser.FullName</h2>
+                    <div class="inline-block px-4 py-1 rounded-full bg-white/10 border border-white/10 mt-3">
+                        <p class="text-yellow/70 text-[10px] font-black uppercase tracking-widest">@SelectedUser.Email</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-10">
+                <div class="grid grid-cols-2 gap-4 mb-10">
+                    <div class="p-6 rounded-[24px] bg-gray-50 border-2 border-burgundy/5 text-center group hover:border-yellow/40 transition-colors">
+                        <div class="text-[9px] font-black text-burgundy/30 uppercase tracking-widest mb-1">Заявок сегодня</div>
+                        <div class="text-2xl font-black text-burgundy">@TodayUserAuctionsCount(SelectedUser.Id)</div>
+                    </div>
+                    <div class="p-6 rounded-[24px] bg-gray-50 border-2 border-burgundy/5 text-center group hover:border-yellow/40 transition-colors">
+                        <div class="text-[9px] font-black text-burgundy/30 uppercase tracking-widest mb-1">Всего заявок</div>
+                        <div class="text-2xl font-black text-burgundy">@TotalUserAuctionsCount(SelectedUser.Id)</div>
+                    </div>
+                    <div class="p-6 rounded-[24px] bg-gray-50 border-2 border-burgundy/5 text-center group hover:border-yellow/40 transition-colors">
+                        <div class="text-[9px] font-black text-burgundy/30 uppercase tracking-widest mb-1">Продаж</div>
+                        <div class="text-2xl font-black text-burgundy">@SelectedUser.SalesCount</div>
+                    </div>
+                    <div class="p-6 rounded-[24px] bg-gray-50 border-2 border-burgundy/5 text-center group hover:border-yellow/40 transition-colors">
+                        <div class="text-[9px] font-black text-burgundy/30 uppercase tracking-widest mb-1">Рейтинг</div>
+                        <div class="text-2xl font-black text-yellow">@SelectedUser.Rating.ToString("F1")★</div>
+                    </div>
+                </div>
+
+                <div class="mb-8 p-6 rounded-[24px] bg-yellow/5 border-2 border-yellow/20 flex items-start gap-4">
+                    <div class="w-10 h-10 bg-yellow/20 rounded-xl flex items-center justify-center flex-shrink-0 text-yellow-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    </div>
+                    <div>
+                        <div class="text-[10px] font-black text-yellow-700/60 uppercase tracking-widest mb-1">Контроль дублей</div>
+                        <div class="text-sm font-black text-burgundy">@GetDuplicateCount(SelectedUser.Id) повторяющихся товаров</div>
+                    </div>
+                </div>
+
+                @if (SelectedUser.IsRestricted)
+                {
+                    <div class="p-8 rounded-[32px] bg-red-50 border-2 border-red-100 text-center animate-pulse">
+                        <div class="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-red-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        </div>
+                        <div class="text-[10px] font-black text-red-400 uppercase tracking-widest mb-2">Ограничение активно</div>
+                        <div class="text-sm text-red-700 font-bold italic mb-6">"@SelectedUser.RestrictionMessage"</div>
+                        <button @onclick="() => RemoveRestriction(SelectedUser.Id)" class="px-8 py-3 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-200 hover:bg-red-700 transition-all">Снять блокировку</button>
+                    </div>
+                }
+                else
+                {
+                    <div class="space-y-3">
+                        @if (TodayUserAuctionsCount(SelectedUser.Id) >= 5)
+                        {
+                            <button @onclick='() => RestrictUser(SelectedUser.Id, "На сегодня ваши ставки завершены, увидимся завтра:)")'
+                                    class="w-full py-5 bg-burgundy text-white rounded-[24px] font-black text-[10px] uppercase tracking-widest hover:bg-burgundy/90 transition-all shadow-xl shadow-burgundy/20 flex items-center justify-center gap-3">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                                ОГРАНИЧИТЬ: 5+ ЗАЯВОК СЕГОДНЯ
+                            </button>
+                        }
+
+                        @if (GetDuplicateCount(SelectedUser.Id) >= 3)
+                        {
+                            <button @onclick='() => RestrictUser(SelectedUser.Id, "Повторное выставление одного и того же товара более 3-х раз запрещено. Доступ ограничен.")'
+                                    class="w-full py-5 bg-burgundy text-white rounded-[24px] font-black text-[10px] uppercase tracking-widest hover:bg-burgundy/90 transition-all shadow-xl shadow-burgundy/20 flex items-center justify-center gap-3">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                ОГРАНИЧИТЬ: ПОВТОРЫ (3+)
+                            </button>
+                        }
+
+                        @if (TodayUserAuctionsCount(SelectedUser.Id) < 5 && GetDuplicateCount(SelectedUser.Id) < 3)
+                        {
+                            <div class="p-8 rounded-[32px] bg-green-50 border-2 border-green-100 text-center group">
+                                <div class="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-green-600 group-hover:scale-110 transition-transform">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                </div>
+                                <div class="text-[10px] font-black text-green-500 uppercase tracking-widest">Нарушений нет</div>
+                                <div class="text-xs text-green-700/60 font-bold mt-1 uppercase tracking-tight">Пользователь соблюдает все правила платформы</div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <button @onclick="() => SelectedUser = null" class="w-full mt-8 py-4 text-[10px] font-black text-burgundy/20 hover:text-burgundy uppercase tracking-[0.3em] transition-colors">
+                    Закрыть профиль
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string Login { get; set; } = "";
+    private string Password { get; set; } = "";
+    private string Error { get; set; } = "";
+    private bool IsAuthenticated { get; set; } = false;
+    private string CurrentView { get; set; } = "pending";
+
+    private Auction? SelectedAuction { get; set; }
+    private User? SelectedUser { get; set; }
+    private decimal AppraisalPriceInput { get; set; }
+
+    private List<Auction> PendingList => Platform.AuctionService.GetPendingAuctions().OrderByDescending(a => a.StartedAt).ToList();
+    private List<Auction> ApprovedList => Platform.AuctionService.GetAllAuctions().Where(a => a.Status == AuctionStatus.Active).OrderByDescending(a => a.StartedAt).ToList();
+    private List<Auction> RejectedList => Platform.AuctionService.GetAllAuctions()
+        .Where(a => a.Status == AuctionStatus.Cancelled)
+        .OrderByDescending(a => a.StartedAt)
+        .ToList();
+
+    private List<Auction> DisplayList => CurrentView switch
+    {
+        "pending" => PendingList,
+        "approved" => ApprovedList,
+        "rejected" => RejectedList,
+        _ => new()
+    };
+
+    private int PendingCount => PendingList.Count;
+
+    private void HandleLogin()
+    {
+        if (Login == "Admin" && Password == "admin1111")
+        {
+            IsAuthenticated = true;
+            Error = "";
+        }
+        else
+        {
+            Error = "Неверный логин или пароль";
+        }
+    }
+
+    private string RejectReasonAssignment = "Тег не соответствует товару";
+
+    private List<AuctionTagAssignment> PendingTagAssignments => Platform.TagService.SearchAssignments(null, ModerationStatus.Pending, null);
+    private int PendingTagAssignmentsCount => PendingTagAssignments.Count;
+
+    private List<AuctionTagAssignment> GetPendingAssignmentsForSelectedAuction()
+    {
+        if (SelectedAuction == null)
+            return new List<AuctionTagAssignment>();
+
+        return Platform.TagService.GetAssignmentsForAuction(SelectedAuction.Id)
+            .Where(a => a.Status == ModerationStatus.Pending)
+            .ToList();
+    }
+
+    private void ApproveAssignment(AuctionTagAssignment assignment)
+    {
+        if (Platform.TagService.ApproveAssignment(UserService.CurrentUser?.Id ?? "admin-internal", assignment.Id))
+        {
+            Platform.SaveState();
+            StateHasChanged();
+        }
+    }
+
+    private void RejectAssignment(AuctionTagAssignment assignment)
+    {
+        if (Platform.TagService.RejectAssignment(UserService.CurrentUser?.Id ?? "admin-internal", assignment.Id, RejectReasonAssignment))
+        {
+            Platform.SaveState();
+            StateHasChanged();
+        }
+    }
+
+    private void Logout()
+    {
+        IsAuthenticated = false;
+        Login = "";
+        Password = "";
+        CurrentView = "pending";
+        SelectedAuction = null;
+        SelectedUser = null;
+    }
+
+    private void OpenAuctionDetails(Auction auction)
+    {
+        SelectedAuction = auction;
+        AppraisalPriceInput = auction.AppraisedPrice ?? auction.StartPrice;
+    }
+
+    private void HandleApprove(string id)
+    {
+        var auction = Platform.AuctionService.GetAuctionById(id);
+        if (auction != null && CanApprove(auction) && Platform.AuctionService.ApproveAuction(id))
+        {
+            Platform.NotificationService.CreateSystemNotification(
+                auction.SellerId,
+                "Лот одобрен",
+                $"Ваш лот \"{auction.Title}\" прошел проверку и теперь активен!");
+
+            Platform.SaveState();
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleAppraise(string id)
+    {
+        var auction = Platform.AuctionService.GetAuctionById(id);
+        if (auction == null)
+            return;
+
+        var proposedPrice = Math.Ceiling(AppraisalPriceInput);
+        if (proposedPrice <= 0)
+            return;
+
+        if (!Platform.AuctionService.AppraiseAuction(id, proposedPrice))
+            return;
+
+        var seller = Platform.UserService.GetUserById(auction.SellerId);
+        Platform.NotificationService.NotifyAuctionAppraised(auction.SellerId, auction.Id, auction.Title, proposedPrice);
+
+        if (seller != null)
+        {
+            var agreeUrl = $"{Nav.BaseUri}appraisal-response?auctionId={auction.Id}&decision=accept";
+            var rejectUrl = $"{Nav.BaseUri}appraisal-response?auctionId={auction.Id}&decision=reject";
+            var emailMessage =
+                $"Ваш товар \"{auction.Title}\" оценили на {proposedPrice:N0} грошей.\n\n" +
+                "Для ответа используйте одну из кнопок ниже:\n" +
+                $"Согласиться: {agreeUrl}\n" +
+                $"Отказаться: {rejectUrl}\n\n" +
+                "Если вы согласитесь, цена будет зафиксирована и администратор сможет одобрить публикацию лота.\n" +
+                "Если вы откажетесь, лот автоматически перейдет в раздел отклоненных.";
+            try
+            {
+                await Platform.EmailService.SendEmailAsync(
+                    seller.Email,
+                    "Ваш товар оценили",
+                    emailMessage,
+                    seller.FullName);
+            }
+            catch
+            {
+            }
+        }
+
+        Platform.SaveState();
+        StateHasChanged();
+    }
+
+    private void HandleReject(string id)
+    {
+        var auction = Platform.AuctionService.GetAuctionById(id);
+        if (auction != null && Platform.AuctionService.RejectAuction(id))
+        {
+            Platform.NotificationService.CreateSystemNotification(
+                auction.SellerId,
+                "Лот отклонен",
+                $"Ваш лот \"{auction.Title}\" не прошел модерацию и был отклонен администратором.");
+
+            Platform.SaveState();
+            StateHasChanged();
+        }
+    }
+
+    private void ViewUserProfile(string userId)
+    {
+        SelectedUser = Platform.UserService.GetUserById(userId);
+    }
+
+    private void RestrictUser(string userId, string message)
+    {
+        Platform.UserService.RestrictUser(userId, message);
+
+        var user = Platform.UserService.GetUserById(userId);
+        if (user != null)
+        {
+            Platform.NotificationService.CreateSystemNotification(
+                userId,
+                "Ограничение доступа",
+                $"Администратор ограничил ваш доступ: {message}");
+        }
+
+        Platform.SaveState();
+        SelectedUser = null;
+        StateHasChanged();
+    }
+
+    private void RemoveRestriction(string userId)
+    {
+        var user = Platform.UserService.GetUserById(userId);
+        if (user != null)
+        {
+            user.LastRestrictionDate = null;
+            user.RestrictionMessage = null;
+
+            Platform.NotificationService.CreateSystemNotification(
+                userId,
+                "Ограничение снято",
+                $"Администратор снял ограничение с вашего аккаунта.");
+        }
+        Platform.SaveState();
+        SelectedUser = null;
+        StateHasChanged();
+    }
+
+    private int TodayUserAuctionsCount(string userId)
+    {
+        return Platform.AuctionService.GetAllAuctions()
+            .Count(a => a.SellerId == userId && a.StartedAt.Date == DateTime.Today);
+    }
+
+    private int TotalUserAuctionsCount(string userId)
+    {
+        return Platform.AuctionService.GetAllAuctions()
+            .Count(a => a.SellerId == userId);
+    }
+
+    private int GetDuplicateCount(string userId)
+    {
+        var userAuctions = Platform.AuctionService.GetAllAuctions()
+            .Where(a => a.SellerId == userId)
+            .GroupBy(a => a.Title.ToLower().Trim())
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        return userAuctions.Count;
+    }
+
+    private bool CanApprove(Auction auction)
+    {
+        return auction.Status == AuctionStatus.Pending
+            && auction.AppraisedPrice is not null
+            && auction.SellerAcceptedAppraisal;
+    }
+
+    private string GetPendingLabel(Auction auction)
+    {
+        if (auction.AppraisedPrice is null)
+            return "ожидает оценки";
+        if (auction.SellerAcceptedAppraisal)
+            return "оценка подтверждена";
+        if (auction.SellerRejectedAppraisal)
+            return "оценка отклонена";
+        return "ожидание решения продавца";
+    }
+}

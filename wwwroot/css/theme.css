@@ -1,0 +1,267 @@
+/* ============================================
+   Theme CSS - Совместимость с существующим кодом
+   Использует новую цветовую схему из ТЗ:
+   - #FFFFFF (белый) - основной цвет интерфейса
+   - #682021 (бордовый) - цвет текста
+   - #0C0C0C (черный) - акцентный цвет
+   - #EFD867 (желтый) - для окон
+   ============================================ */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  
+  /* Основные цвета - белый как основной фон интерфейса */
+  --background: #FFFFFF;
+  --foreground: #550000; /* Бордовый для текста */
+  
+  /* Карточки - белый фон */
+  --card: #FFFFFF;
+  --card-foreground: #a96566;
+  
+  /* Всплывающие окна - желтый фон */
+  --popover: #EFD867;
+  --popover-foreground: #0C0C0C;
+  
+  /* Основные цвета */
+  --primary: #ffffff; /* Бордовый */
+  --primary-foreground: #FFFFFF;
+  --secondary: #0C0C0C; /* Черный акцент */
+  --secondary-foreground: #FFFFFF;
+  
+  /* Приглушенные цвета */
+  --muted: rgba(255, 255, 255, 0.1);
+  --muted-foreground: rgba(255, 255, 255, 0.6);
+  
+  /* Акцент - желтый для окон */
+  --accent: #EFD867;
+  --accent-foreground: #0C0C0C;
+  
+  /* Деструктивные действия */
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+  
+  /* Границы */
+  --border: rgba(104, 32, 33, 0.2);
+  
+  /* Поля ввода */
+  --input: #FFFFFF;
+  --input-background: rgba(104, 32, 33, 0.05);
+  
+  /* Переключатели */
+  --switch-background: #682021;
+  
+  /* Типографика */
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  
+  /* Фокус */
+  --ring: #682021;
+  
+  /* Графики */
+  --chart-1: #EFD867;
+  --chart-2: #682021;
+  --chart-3: #0C0C0C;
+  --chart-4: #FFFFFF;
+  --chart-5: rgba(255, 255, 255, 0.5);
+  
+  /* Радиус */
+  --radius: 0.625rem;
+  
+  /* Боковая панель */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #682021;
+  --sidebar-primary: #682021;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #EFD867;
+  --sidebar-accent-foreground: #0C0C0C;
+  --sidebar-border: rgba(104, 32, 33, 0.2);
+  --sidebar-ring: #EFD867;
+}
+
+.dark {
+  /* Темная тема - черный фон, белый текст */
+  --background: #0C0C0C;
+  --foreground: #FFFFFF;
+  --card: #0C0C0C;
+  --card-foreground: #FFFFFF;
+  --popover: #EFD867;
+  --popover-foreground: #0C0C0C;
+  --primary: #9e3c3c;
+  --primary-foreground: #FFFFFF;
+  --secondary: #EFD867;
+  --secondary-foreground: #0C0C0C;
+  --muted: rgba(255, 255, 255, 0.1);
+  --muted-foreground: rgba(255, 255, 255, 0.6);
+  --accent: #EFD867;
+  --accent-foreground: #0C0C0C;
+  --destructive: #d4183d;
+  --destructive-foreground: #FFFFFF;
+  --border: rgba(255, 255, 255, 0.2);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #EFD867;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: #EFD867;
+  --chart-2: #bf4a4a;
+  --chart-3: #0C0C0C;
+  --chart-4: #FFFFFF;
+  --chart-5: rgba(255, 255, 255, 0.5);
+  --sidebar: #0C0C0C;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: #682021;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #EFD867;
+  --sidebar-accent-foreground: #0C0C0C;
+  --sidebar-border: rgba(255, 255, 255, 0.2);
+  --sidebar-ring: #EFD867;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: color-mix(in oklab, var(--ring), transparent 50%);
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  html { 
+    font-size: var(--font-size); 
+  }
+  
+  h1 { 
+    font-size: 1.5rem; 
+    font-weight: var(--font-weight-medium); 
+    line-height: 1.5; 
+    margin: 0;
+  }
+  
+  h2 { 
+    font-size: 1.25rem; 
+    font-weight: var(--font-weight-medium); 
+    line-height: 1.5; 
+    margin: 0;
+  }
+  
+  h3 { 
+    font-size: 1.125rem; 
+    font-weight: var(--font-weight-medium); 
+    line-height: 1.5; 
+    margin: 0;
+  }
+  
+  h4 { 
+    font-size: 1rem; 
+    font-weight: var(--font-weight-medium); 
+    line-height: 1.5; 
+    margin: 0;
+  }
+  
+  label { 
+    font-size: 1rem; 
+    font-weight: var(--font-weight-medium); 
+    line-height: 1.5; 
+  }
+  
+  button { 
+    font-size: 1rem; 
+    font-weight: var(--font-weight-medium); 
+    line-height: 1.5; 
+    font-family: inherit;
+  }
+  
+  input { 
+    font-size: 1rem; 
+    font-weight: var(--font-weight-normal); 
+    line-height: 1.5; 
+    font-family: inherit;
+  }
+  
+  a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+  
+  a:hover {
+    text-decoration: underline;
+  }
+  
+  /* Утилиты для space-y */
+  .space-y-3 > * + * { margin-top: 0.75rem; }
+  .space-y-4 > * + * { margin-top: 1rem; }
+  .space-y-6 > * + * { margin-top: 1.5rem; }
+  
+  /* Утилиты для скрытия */
+  .hidden { display: none !important; }
+  
+  @media (min-width: 640px) {
+    .sm\:block { display: block !important; }
+    .sm\:flex { display: flex !important; }
+  }
+  
+  @media (min-width: 768px) {
+    .md\:flex { display: flex !important; }
+    .md\:col-span-2 { grid-column: span 2 / span 2; }
+  }
+  
+  @media (min-width: 1024px) {
+    .lg\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .lg\:col-span-2 { grid-column: span 2 / span 2; }
+  }
+}
+
+.auction-hall-bg {
+  background:
+    radial-gradient(1100px 600px at 90% 20%, rgba(239, 216, 103, 0.06), transparent 100%),
+    radial-gradient(900px 600px at -10% 15%, rgba(255, 230, 107, 0.05), transparent 80%),
+    radial-gradient(800px 700px at 50% 120%, rgba(60, 18, 22, 0.65), transparent 70%),
+    linear-gradient(180deg, #ffffff 0%, #4b1820 40%, #34000a 70%, #3a0000 100%);
+}
+
+.hero-gold-title {
+  color: #EFD867;
+  text-shadow:
+    0 1px 0 rgba(12, 12, 12, 0.25),
+    0 6px 18px rgba(239, 216, 103, 0.2);
+  letter-spacing: -0.02em;
+}
+
+.gold-border {
+  border-color: #EFD867 !important;
+}
+
+.gold-divider {
+  background-color: rgba(255, 230, 102, 0.5);
+}
+
+.btn-gold {
+  background-color: #EFD867;
+  color: #682021;
+  border: 2px solid transparent;
+  transition: all 200ms ease-in-out;
+}
+.btn-gold:hover {
+  border-color: #EFD867;
+  box-shadow: 0 0 0 4px rgba(239, 216, 103, 0.35);
+  color: #682021;
+}
+
+.btn-burgundy {
+  background-color: #682021;
+  color: #ffffff;
+  border: 2px solid transparent;
+  transition: all 200ms ease-in-out;
+  box-shadow: 0 8px 24px rgba(111, 52, 53, 0.25);
+}
+.btn-burgundy:hover {
+  border-color: #EFD867;
+  box-shadow: 0 8px 24px rgba(104, 32, 33, 0.25), 0 0 0 4px rgba(239, 216, 103, 0.35);
+  color: #ffffff;
+}

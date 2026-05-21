@@ -1,0 +1,4 @@
+/* Tailwind entry for Blazor build. We'll rely on Tailwind CLI via npm to process this. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

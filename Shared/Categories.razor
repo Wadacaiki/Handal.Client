@@ -1,0 +1,49 @@
+@inject AuctionPlatformService Platform
+
+<section id="categories" class="py-12">
+    <div class="container mx-auto px-4 lg:px-8">
+        <div class="mb-6">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-8 h-[2px] gold-divider"></span>
+            </div>
+            <h2 class="text-4xl font-black hero-gold-title m-0">Категории</h2>
+        </div>
+        <div class="flex flex-wrap gap-4">
+            @foreach (var category in categories)
+            {
+                <button class="w-[140px] sm:w-[160px] p-4 rounded-2xl text-center transition-all hover:transform hover:scale-105 group border border-burgundy/10 bg-white shadow-sm hover:shadow-md hover:border-yellow flex flex-col items-center justify-center"
+                        @onclick="() => FilterByCategory(category.Name)">
+                    <h3 class="text-xs font-bold text-burgundy uppercase tracking-wider truncate w-full">@category.Name</h3>
+                    <p class="text-[10px] text-burgundy/40 font-bold mt-1">@category.Count</p>
+                </button>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter] public EventCallback<string> OnCategorySelected { get; set; }
+
+    private void FilterByCategory(string name)
+    {
+        OnCategorySelected.InvokeAsync(name);
+    }
+
+    private class Category
+    {
+        public string Name { get; set; } = "";
+        public int Count { get; set; }
+    }
+
+    private List<Category> categories = new();
+
+    protected override void OnInitialized()
+    {
+        var desired = new[] { "Часы", "Антиквариат", "Книги", "Искусство", "Украшения", "Этнос", "Мебель", "История", "Музыка", "Оружие" };
+        var auctions = Platform.AuctionService.GetAllAuctions();
+        categories = desired
+          .Select(name => new Category { Name = name, Count = auctions.Count(a => a.Category == name) })
+          .Where(c => c.Count > 0)
+          .ToList();
+    }
+}

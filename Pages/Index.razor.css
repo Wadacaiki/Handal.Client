@@ -1,0 +1,39 @@
+.animated-bar {
+    transform-origin: left;
+    animation: grow-bar 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes grow-bar {
+    from {
+        transform: scaleX(0);
+    }
+
+    to {
+        transform: scaleX(1);
+    }
+}
+
+.pie-slice {
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: pointer;
+    opacity: 1;
+    stroke: white;
+    stroke-width: 1px;
+    transform-origin: 100px 100px;
+}
+
+.pie-container:hover .pie-slice:not(:hover):not(.active) {
+    opacity: 0.6;
+    filter: grayscale(0.2);
+}
+
+.pie-slice:hover, .pie-slice.active {
+    filter: drop-shadow(0 0 20px rgba(0,0,0,0.4));
+    stroke-width: 2px;
+    z-index: 50;
+    opacity: 1;
+}
+
+.pie-container {
+    filter: drop-shadow(0 10px 15px rgba(104, 32, 33, 0.1));
+}

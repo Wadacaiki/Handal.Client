@@ -1,0 +1,28 @@
+/* ============================================
+   Main CSS Entry Point
+   Импорт всех стилей по категориям
+   ============================================ */
+
+/* 1. Переменные и настройки */
+@import './variables.css';
+
+/* 2. Шрифты */
+@import './fonts.css';
+
+/* 3. Tailwind (если используется) */
+@import './tailwind.css';
+
+/* 4. Тема (совместимость со старым кодом) */
+@import './theme.css';
+
+/* 5. Layout - структура страниц */
+@import './layout.css';
+
+/* 6. Components - компоненты интерфейса */
+@import './components.css';
+
+/* 7. Forms - формы и поля ввода */
+@import './forms.css';
+
+/* 8. Utilities - утилитарные классы */
+@import './utilities.css';

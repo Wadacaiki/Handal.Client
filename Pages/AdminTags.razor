@@ -1,0 +1,337 @@
+@page "/admin/tags"
+@inject AuctionPlatformService Platform
+@inject UserService UserService
+@inject NavigationManager Nav
+@using Handal.Client.Models
+
+<div class="min-h-screen auction-hall-bg flex font-sans text-burgundy">
+    @if (!IsAuthenticated)
+    {
+        <div class="flex-grow flex items-center justify-center p-6">
+            <div class="bg-white rounded-2xl shadow-xl border-2 border-yellow p-8 w-full max-w-md">
+                <h2 class="text-2xl font-black text-burgundy mb-6 text-center">Вход администратора</h2>
+                <div class="space-y-3">
+                    <input class="w-full px-4 py-3 rounded-xl bg-white border-2 border-burgundy/10 text-burgundy font-bold" placeholder="Логин" @bind="Login" />
+                    <input type="password" class="w-full px-4 py-3 rounded-xl bg-white border-2 border-burgundy/10 text-burgundy font-bold" placeholder="Пароль" @bind="Password" />
+                    @if (!string.IsNullOrEmpty(Error))
+                    {
+                        <div class="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 font-bold text-sm">@Error</div>
+                    }
+                    <button class="w-full px-6 py-3 rounded-xl font-black text-white" style="background:#682021" @onclick="HandleLogin">Войти</button>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="flex-grow">
+            <div class="p-6 border-b border-burgundy/10 bg-white flex items-center justify-between flex-wrap gap-3">
+                <div>
+                    <h1 class="text-2xl font-black">Модерация тегов</h1>
+                    <div class="text-sm text-burgundy/60">Администратор: @AdminName</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <a class="px-4 py-2 rounded-lg border border-burgundy/20" href="/admin">Лоты</a>
+                    <a class="px-4 py-2 rounded-lg border border-burgundy/20" href="/">Главная</a>
+                    <button class="px-4 py-2 rounded-lg border border-burgundy/20" @onclick="Logout">Выход</button>
+                </div>
+            </div>
+            <div class="p-6 space-y-6">
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div class="bg-white border border-burgundy/10 rounded-2xl p-5">
+                        <div class="text-[11px] font-black uppercase tracking-[0.2em] text-burgundy/40 mb-2">На проверке</div>
+                        <div class="text-3xl font-black text-burgundy">@PendingDefinitionsCount</div>
+                        <div class="text-sm text-burgundy/60 mt-1">новых тегов</div>
+                    </div>
+                    <div class="bg-white border border-burgundy/10 rounded-2xl p-5">
+                        <div class="text-[11px] font-black uppercase tracking-[0.2em] text-burgundy/40 mb-2">Привязки</div>
+                        <div class="text-3xl font-black text-burgundy">@PendingAssignmentsCount</div>
+                        <div class="text-sm text-burgundy/60 mt-1">ожидают решения</div>
+                    </div>
+                    <div class="bg-white border border-burgundy/10 rounded-2xl p-5">
+                        <div class="text-[11px] font-black uppercase tracking-[0.2em] text-burgundy/40 mb-2">Белый список</div>
+                        <div class="text-3xl font-black text-burgundy">@ApprovedDefinitionsCount</div>
+                        <div class="text-sm text-burgundy/60 mt-1">одобренных тегов</div>
+                    </div>
+                </div>
+                <div class="bg-white border border-burgundy/10 rounded-2xl p-4">
+                    <h3 class="text-lg font-black mb-2">Быстрая назначение белых тегов</h3>
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <select class="px-3 py-2 rounded-xl border border-burgundy/20" @bind="_assignAuctionId">
+                            <option value="">Выбрать лот</option>
+                            @foreach (var a in Platform.AuctionService.GetAllAuctions().OrderByDescending(x => x.StartedAt).Take(50))
+                            {
+                                <option value="@a.Id">@a.Title</option>
+                            }
+                        </select>
+                        <select class="px-3 py-2 rounded-xl border border-burgundy/20" @bind="_assignTagName">
+                            <option value="">Выбрать тег</option>
+                            @foreach (var t in Platform.TagService.GetTrendingTags(minUsage:0, top:100))
+                            {
+                                <option value="@t.Name">@t.Name (@t.UsageCount)</option>
+                            }
+                        </select>
+                        <button class="px-4 py-2 rounded-xl bg-burgundy text-white font-bold" @onclick="AssignWhitelistTag">Назначить</button>
+                        @if (!string.IsNullOrEmpty(_assignError))
+                        {
+                            <span class="text-red-600 font-bold text-sm">@_assignError</span>
+                        }
+                    </div>
+                </div>
+                <div class="bg-white border border-burgundy/10 rounded-2xl p-4">
+                    <h3 class="text-lg font-black mb-3">Аналитика тегов</h3>
+                    <div class="grid md:grid-cols-2 gap-3">
+                        @foreach (var row in Platform.TagService.GetTagAnalytics(minUsage:0).Take(20))
+                        {
+                            <div class="p-3 rounded-xl border border-burgundy/10">
+                                <div class="font-black">@row.tag.Name</div>
+                                <div class="text-burgundy/70 text-sm">Категория: @row.tag.Category</div>
+                                <div class="text-burgundy/70 text-sm">Использований: @row.tag.UsageCount • Поисков: @row.searchCount</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="bg-white border border-burgundy/10 rounded-2xl p-4">
+                    <h3 class="text-lg font-black mb-3">Журнал модерации</h3>
+                    <div class="space-y-3">
+                        @foreach (var log in ModerationLog)
+                        {
+                            <div class="p-3 rounded-xl border border-burgundy/10 bg-slate-50">
+                                <div class="text-sm font-bold text-burgundy">@log.Action</div>
+                                <div class="text-xs text-burgundy/70">Тег: @log.TargetTagName • Сущность: @log.EntityType • Время: @log.Timestamp.ToString("g")</div>
+                                @if (!string.IsNullOrWhiteSpace(log.Reason))
+                                {
+                                    <div class="text-xs text-red-600 mt-1">Причина: @log.Reason</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button class="@GetTabButtonClass("defs")" @onclick="SwitchToDefinitions">Теги</button>
+                    <button class="@GetTabButtonClass("asgs")" @onclick="SwitchToAssignments">Привязки</button>
+                </div>
+                @if (ActiveTab == "defs")
+                {
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <input class="px-4 py-2 rounded-lg border" placeholder="Поиск" @bind="SearchDefs" />
+                        <select class="px-4 py-2 rounded-lg border" @bind="DefsStatusFilterString">
+                            <option value="">Статус</option>
+                            <option value="Pending">На модерации</option>
+                            <option value="Approved">Одобрено</option>
+                            <option value="Rejected">Отклонено</option>
+                        </select>
+                        <select class="px-4 py-2 rounded-lg border" @bind="DefsCategoryFilter">
+                            <option value="">Категория</option>
+                            @foreach (var c in Platform.TagService.GetSystemCategories())
+                            {
+                                <option value="@c">@c</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        @foreach (var t in FilteredDefinitions)
+                        {
+                            <div class="p-4 rounded-xl bg-white border border-burgundy/10">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <div class="text-lg font-black">@t.Name</div>
+                                        <div class="text-sm text-burgundy/60">Категория: @t.Category • Использований: @t.UsageCount</div>
+                                        <div class="text-xs text-burgundy/60">Статус: @t.Status</div>
+                                    </div>
+                                    @if (t.Status == ModerationStatus.Pending)
+                                    {
+                                        <div class="space-y-2">
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <select class="px-2 py-1 rounded-md border" @bind="t.Category">
+                                                    @foreach (var c in Platform.TagService.GetSystemCategories())
+                                                    {
+                                                        <option value="@c">@c</option>
+                                                    }
+                                                </select>
+                                                <button class="px-3 py-1.5 rounded-lg bg-green-600 text-white font-bold" @onclick="() => ApproveDefinition(t)">Одобрить</button>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <input class="px-3 py-1 rounded-md border w-full" placeholder="Причина отклонения" @bind="RejectReasonDefinition" />
+                                                <button class="px-3 py-1.5 rounded-lg bg-red-600 text-white font-bold" @onclick="() => RejectDefinition(t)">Отклонить</button>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                                @if (t.Status == ModerationStatus.Rejected && !string.IsNullOrWhiteSpace(t.RejectReason))
+                                {
+                                    <div class="mt-2 text-xs text-red-600">Причина: @t.RejectReason</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <input class="px-4 py-2 rounded-lg border" placeholder="Поиск" @bind="SearchAsgs" />
+                        <select class="px-4 py-2 rounded-lg border" @bind="AsgsStatusFilterString">
+                            <option value="">Статус</option>
+                            <option value="Pending">На модерации</option>
+                            <option value="Approved">Одобрено</option>
+                            <option value="Rejected">Отклонено</option>
+                        </select>
+                        <select class="px-4 py-2 rounded-lg border" @bind="AsgsCategoryFilter">
+                            <option value="">Категория</option>
+                            @foreach (var c in Platform.TagService.GetSystemCategories())
+                            {
+                                <option value="@c">@c</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        @foreach (var a in FilteredAssignments)
+                        {
+                            var tag = Platform.TagService.GetAllTagDefinitions().FirstOrDefault(x => x.Id == a.TagDefinitionId);
+                            var auction = Platform.AuctionService.GetAuctionById(a.AuctionId);
+                            <div class="p-4 rounded-xl bg-white border border-burgundy/10">
+                                <div class="text-lg font-black">@tag?.Name</div>
+                                <div class="text-sm text-burgundy/60">Лот: @auction?.Title</div>
+                                <div class="text-xs text-burgundy/60">Категория: @a.Category • Статус: @a.Status</div>
+                                @if (a.Status == ModerationStatus.Pending)
+                                {
+                                    <div class="space-y-2 mt-2">
+                                        <div class="flex items-center gap-2">
+                                            <button class="px-3 py-1.5 rounded-lg bg-green-600 text-white font-bold" @onclick="() => ApproveAssignment(a)">Одобрить</button>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <input class="px-3 py-1 rounded-md border w-full" placeholder="Причина отклонения" @bind="RejectReasonAssignment" />
+                                            <button class="px-3 py-1.5 rounded-lg bg-red-600 text-white font-bold" @onclick="() => RejectAssignment(a)">Отклонить</button>
+                                        </div>
+                                    </div>
+                                }
+                                @if (a.Status == ModerationStatus.Rejected && !string.IsNullOrWhiteSpace(a.RejectReason))
+                                {
+                                    <div class="mt-2 text-xs text-red-600">Причина: @a.RejectReason</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string Login = "";
+    private string Password = "";
+    private string Error = "";
+    private string ActiveTab = "defs";
+    private string RejectReasonDefinition = "Не соответствует правилам";
+    private string RejectReasonAssignment = "Не соответствует товару";
+
+    private string SearchDefs = "";
+    private string DefsStatusFilterString = "Pending";
+    private string DefsCategoryFilter = "";
+
+    private string SearchAsgs = "";
+    private string AsgsStatusFilterString = "Pending";
+    private string AsgsCategoryFilter = "";
+
+    private List<TagDefinition> FilteredDefinitions => Platform.TagService.SearchDefinitions(
+        SearchDefs, ParseStatus(DefsStatusFilterString), string.IsNullOrWhiteSpace(DefsCategoryFilter) ? null : DefsCategoryFilter);
+    private List<AuctionTagAssignment> FilteredAssignments => Platform.TagService.SearchAssignments(
+        SearchAsgs, ParseStatus(AsgsStatusFilterString), string.IsNullOrWhiteSpace(AsgsCategoryFilter) ? null : AsgsCategoryFilter);
+    private int PendingDefinitionsCount => Platform.TagService.SearchDefinitions(null, ModerationStatus.Pending, null).Count;
+    private int PendingAssignmentsCount => Platform.TagService.SearchAssignments(null, ModerationStatus.Pending, null).Count;
+    private int ApprovedDefinitionsCount => Platform.TagService.SearchDefinitions(null, ModerationStatus.Approved, null).Count;
+    private IReadOnlyList<TagModerationLogEntry> ModerationLog => Platform.TagService.GetModerationLogEntries(20);
+
+    private string _assignAuctionId = "";
+    private string _assignTagName = "";
+    private string _assignError = "";
+
+    private bool IsAuthenticated => UserService.CurrentUser?.IsAdmin == true;
+    private string AdminName => UserService.CurrentUser?.FullName ?? "Администратор";
+
+    private void HandleLogin()
+    {
+        Error = string.Empty;
+        var result = UserService.Login(Login, Password);
+        if (!result.success || result.user == null || !result.user.IsAdmin)
+        {
+            if (result.success && result.user != null && !result.user.IsAdmin)
+            {
+                UserService.Logout();
+                Error = "Доступ запрещён: требуется администратор";
+                return;
+            }
+
+            Error = result.message;
+            return;
+        }
+
+        Error = string.Empty;
+        Login = string.Empty;
+        Password = string.Empty;
+        StateHasChanged();
+    }
+    private void Logout()
+    {
+        UserService.Logout();
+        Login = string.Empty;
+        Password = string.Empty;
+        StateHasChanged();
+    }
+    private void SwitchTab(string tab)
+    {
+        ActiveTab = tab;
+    }
+    private void SwitchToDefinitions() => SwitchTab("defs");
+    private void SwitchToAssignments() => SwitchTab("asgs");
+    private string GetTabButtonClass(string tab) =>
+        $"px-4 py-2 rounded-lg border font-bold {(ActiveTab == tab ? "bg-burgundy text-white" : "")}";
+    private static ModerationStatus? ParseStatus(string v)
+    {
+        if (string.IsNullOrWhiteSpace(v)) return null;
+        return Enum.TryParse<ModerationStatus>(v, out var s) ? s : null;
+    }
+    private void ApproveDefinition(TagDefinition t)
+    {
+        Platform.TagService.ApproveTagDefinition(UserService.CurrentUser?.Id ?? "admin-internal", t.Id, t.Category);
+        Platform.SaveState();
+        StateHasChanged();
+    }
+    private void RejectDefinition(TagDefinition t)
+    {
+        Platform.TagService.RejectTagDefinition(UserService.CurrentUser?.Id ?? "admin-internal", t.Id, RejectReasonDefinition);
+        Platform.SaveState();
+        StateHasChanged();
+    }
+    private void ApproveAssignment(AuctionTagAssignment a)
+    {
+        Platform.TagService.ApproveAssignment(UserService.CurrentUser?.Id ?? "admin-internal", a.Id);
+        Platform.SaveState();
+        StateHasChanged();
+    }
+    private void RejectAssignment(AuctionTagAssignment a)
+    {
+        Platform.TagService.RejectAssignment(UserService.CurrentUser?.Id ?? "admin-internal", a.Id, RejectReasonAssignment);
+        Platform.SaveState();
+        StateHasChanged();
+    }
+    private void AssignWhitelistTag()
+    {
+        _assignError = "";
+        if (string.IsNullOrWhiteSpace(_assignAuctionId) || string.IsNullOrWhiteSpace(_assignTagName))
+        {
+            _assignError = "Выберите лот и тег";
+            return;
+        }
+        var res = Platform.TagService.AttachTagToAuction(UserService.CurrentUser?.Id ?? "admin-internal", _assignAuctionId, _assignTagName, null);
+        if (!res.Success || res.Assignment == null)
+        {
+            _assignError = res.Error ?? "Ошибка";
+            return;
+        }
+        Platform.TagService.ApproveAssignment(UserService.CurrentUser?.Id ?? "admin-internal", res.Assignment.Id);
+        Platform.SaveState();
+        StateHasChanged();
+    }
+}

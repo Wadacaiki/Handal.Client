@@ -1,0 +1,147 @@
+@page "/notifications"
+@inject UserService UserService
+@inject NotificationService NotificationService
+@inject AuctionService AuctionService
+@inject AuctionPlatformService PlatformService
+
+<div class="min-h-screen bg-white py-12">
+    <div class="container mx-auto px-4 lg:px-8">
+        <div class="mb-12">
+            <h1 class="text-4xl font-black text-burgundy mb-2">Уведомления</h1>
+            <p class="text-lg text-burgundy/70">Все ваши уведомления и обновления</p>
+        </div>
+
+        @if (UserService.CurrentUser is null)
+        {
+            <div class="bg-white rounded-3xl p-12 text-center border border-burgundy/10 shadow-xl shadow-burgundy/5 max-w-2xl mx-auto">
+                <div class="w-20 h-20 rounded-full bg-burgundy/5 text-burgundy flex items-center justify-center text-3xl mx-auto mb-6"></div>
+                <p class="text-burgundy text-xl mb-8 font-medium">Вы не вошли в систему.</p>
+                <a href="/" class="inline-block px-8 py-4 rounded-xl bg-burgundy text-white font-bold hover:bg-burgundy/90 transition-colors shadow-lg shadow-burgundy/20">
+                    Вернуться на главную
+                </a>
+            </div>
+        }
+        else
+        {
+            var list = NotificationService.GetUserNotifications(UserService.CurrentUser.Id);
+            if (!list.Any())
+            {
+                <div class="bg-white rounded-3xl p-12 text-center border border-burgundy/10 shadow-xl shadow-burgundy/5">
+                    <div class="w-20 h-20 rounded-full bg-yellow/20 text-yellow-600 flex items-center justify-center text-3xl mx-auto mb-6"></div>
+                    <p class="text-burgundy text-xl font-medium">У вас пока нет уведомлений.</p>
+                </div>
+            }
+            else
+            {
+                <div class="space-y-4">
+                    @foreach (var n in list)
+                    {
+                        <div class="relative rounded-2xl p-6 transition-all duration-300 @(n.IsRead ? "bg-white border border-burgundy/10 shadow-sm" : "bg-white border-2 border-yellow shadow-lg shadow-yellow/10")">
+                            @if (!n.IsRead)
+                            {
+                                <div class="absolute top-0 right-0 w-4 h-4 bg-yellow rounded-full -mt-1 -mr-1 shadow-sm ring-2 ring-white"></div>
+                            }
+
+                            <div class="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                                <div class="flex-1">
+                                    <div class="font-bold text-lg text-burgundy mb-1">@n.Title</div>
+                                    <div class="text-burgundy/80 mb-2 leading-relaxed">@n.Message</div>
+                                    <div class="text-xs text-burgundy/50 font-medium">@n.CreatedAt.ToString("g")</div>
+                                </div>
+                                <div class="flex gap-3 shrink-0 flex-wrap justify-end">
+                                    @if (CanRespondToAppraisal(n))
+                                    {
+                                        <button class="px-4 py-2 rounded-lg bg-burgundy text-white text-sm font-bold hover:bg-burgundy/90 transition-colors shadow-sm"
+                                                @onclick="() => AcceptAppraisal(n)">
+                                            Согласиться
+                                        </button>
+                                        <button class="px-4 py-2 rounded-lg border border-red-300 text-red-600 text-sm font-bold hover:bg-red-50 transition-colors"
+                                                @onclick="() => RejectAppraisal(n)">
+                                            Отказаться
+                                        </button>
+                                    }
+                                    @if (!n.IsRead)
+                                    {
+                                        <button class="px-4 py-2 rounded-lg bg-yellow text-black text-sm font-bold hover:bg-yellow/80 transition-colors shadow-sm" @onclick="() => MarkRead(n.Id)">
+                                            Прочитано
+                                        </button>
+                                    }
+                                    <button class="px-4 py-2 rounded-lg border border-burgundy/20 text-burgundy text-sm font-medium hover:bg-burgundy/5 transition-colors" @onclick="() => Delete(n.Id)">
+                                        Удалить
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private void MarkRead(string id)
+    {
+        NotificationService.MarkAsRead(id);
+    }
+
+    private void Delete(string id)
+    {
+        NotificationService.DeleteNotification(id);
+    }
+
+    private bool CanRespondToAppraisal(Notification notification)
+    {
+        if (UserService.CurrentUser == null || notification.Type != NotificationType.Appraisal || string.IsNullOrWhiteSpace(notification.RelatedId))
+            return false;
+
+        var auction = AuctionService.GetAuctionById(notification.RelatedId);
+        return auction != null
+               && auction.Status == AuctionStatus.Pending
+               && auction.SellerId == UserService.CurrentUser.Id
+               && auction.AppraisedPrice is not null
+               && !auction.SellerAcceptedAppraisal
+               && !auction.SellerRejectedAppraisal;
+    }
+
+    private void AcceptAppraisal(Notification notification)
+    {
+        if (UserService.CurrentUser == null || string.IsNullOrWhiteSpace(notification.RelatedId))
+            return;
+
+        if (AuctionService.AcceptAppraisalBySeller(notification.RelatedId, UserService.CurrentUser.Id))
+        {
+            NotificationService.CreateSystemNotification(
+                UserService.CurrentUser.Id,
+                "Оценка принята",
+                "Вы согласились с оценкой администратора. Лот ожидает финального одобрения.");
+            NotificationService.CreateSystemNotification(
+                "admin-internal",
+                "Продавец согласился с оценкой",
+                "Лот готов к одобрению в разделе модерации.");
+            NotificationService.MarkAsRead(notification.Id);
+            PlatformService.SaveState();
+        }
+    }
+
+    private void RejectAppraisal(Notification notification)
+    {
+        if (UserService.CurrentUser == null || string.IsNullOrWhiteSpace(notification.RelatedId))
+            return;
+
+        var auction = AuctionService.GetAuctionById(notification.RelatedId);
+        if (AuctionService.RejectAppraisalBySeller(notification.RelatedId, UserService.CurrentUser.Id))
+        {
+            NotificationService.CreateSystemNotification(
+                UserService.CurrentUser.Id,
+                "Оценка отклонена",
+                "Вы отказались от оценки. Лот автоматически перенесен в отклоненные.");
+            NotificationService.CreateSystemNotification(
+                "admin-internal",
+                "Оценка отклонена продавцом",
+                $"Продавец отказался от оценки лота \"{auction?.Title ?? "без названия"}\".");
+            NotificationService.MarkAsRead(notification.Id);
+            PlatformService.SaveState();
+        }
+    }
+}

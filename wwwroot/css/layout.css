@@ -1,0 +1,141 @@
+/* ============================================
+   Layout Styles - Структура страниц
+   ============================================ */
+
+/* Основной контейнер */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--spacing-md);
+  padding-right: var(--spacing-md);
+}
+
+@media (min-width: 640px) {
+  .container {
+    max-width: 640px;
+  }
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: 768px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    max-width: 1024px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .container {
+    max-width: 1280px;
+  }
+}
+
+/* Основной layout */
+.main-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.main-layout__header {
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color-light);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+}
+
+.main-layout__main {
+  flex: 1;
+  background-color: var(--bg-primary);
+}
+
+.main-layout__footer {
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color-light);
+  padding: var(--spacing-xl) 0;
+}
+
+/* Секции */
+.section {
+  padding: var(--spacing-2xl) 0;
+}
+
+.section--dark {
+  background-color: var(--bg-secondary);
+  color: var(--text-on-dark);
+}
+
+.section--light {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.section--accent {
+  background-color: var(--bg-accent);
+  color: var(--text-secondary);
+}
+
+/* Сетки */
+.grid {
+  display: grid;
+  gap: var(--spacing-md);
+}
+
+.grid--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.grid--3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.grid--4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 768px) {
+  .grid--2,
+  .grid--3,
+  .grid--4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Flex утилиты */
+.flex {
+  display: flex;
+}
+
+.flex--column {
+  flex-direction: column;
+}
+
+.flex--center {
+  align-items: center;
+  justify-content: center;
+}
+
+.flex--between {
+  justify-content: space-between;
+}
+
+.flex--gap-sm {
+  gap: var(--spacing-sm);
+}
+
+.flex--gap-md {
+  gap: var(--spacing-md);
+}
+
+.flex--gap-lg {
+  gap: var(--spacing-lg);
+}
+

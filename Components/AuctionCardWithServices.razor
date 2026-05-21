@@ -1,0 +1,335 @@
+@* Пример использования сервисов в Blazor компоненте *@
+@using Handal.Client.Models
+@using Handal.Client.Services
+@inject AuctionService AuctionService
+@inject BidService BidService
+@inject NotificationService NotificationService
+@inject UserService UserService
+
+<div class="auction-card" @onclick="ViewDetails">
+    <div class="card-image">
+        <img src="@Auction?.Image" alt="@Auction?.Title" />
+    </div>
+
+    <div class="card-content">
+        <h3>@Auction?.Title</h3>
+        <p class="category">@Auction?.Category</p>
+
+        <div class="bid-info">
+            <div class="current-bid">
+                <span class="label">Текущая ставка</span>
+                <span class="amount">@Auction?.CurrentBid.ToString("N0") гроши</span>
+            </div>
+            <div class="bids-count">
+                <span>@Auction?.BidsCount ставок</span>
+            </div>
+        </div>
+
+        <div class="timer">
+            <span class="time-remaining">@TimeRemaining</span>
+        </div>
+
+        <button class="btn-bid"
+                @onclick="PlaceBid"
+                disabled="@(Auction?.Status != AuctionStatus.Active)">
+            @(IsAuthenticated ? "Сделать ставку" : "Войти для ставки")
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="error-message">@ErrorMessage</div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Параметр компонента - объект аукциона
+    /// </summary>
+    [Parameter]
+    public Auction? Auction { get; set; }
+
+    /// <summary>
+    /// Параметр компонента - ID текущего пользователя
+    /// </summary>
+    [Parameter]
+    public string? CurrentUserId { get; set; }
+
+    /// <summary>
+    /// Параметр компонента - аутентифицирован ли пользователь
+    /// </summary>
+    [Parameter]
+    public bool IsAuthenticated { get; set; }
+
+    /// <summary>
+    /// Callback при просмотре деталей
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnViewDetails { get; set; }
+
+    private string TimeRemaining { get; set; } = "";
+    private string ErrorMessage { get; set; } = "";
+    private decimal BidAmount { get; set; } = 1000;
+
+    protected override void OnInitialized()
+    {
+        // Обновлять оставшееся время каждую секунду
+        _ = Task.Run(async () =>
+        {
+            while (Auction?.Status == AuctionStatus.Active && Auction.EndsAt > DateTime.Now)
+            {
+                UpdateTimeRemaining();
+                await Task.Delay(1000);
+                await InvokeAsync(StateHasChanged);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Обновить отображение оставшегося времени
+    /// </summary>
+    private void UpdateTimeRemaining()
+    {
+        if (Auction == null)
+            return;
+
+        var remaining = Auction.EndsAt - DateTime.Now;
+        if (remaining.TotalSeconds <= 0)
+        {
+            TimeRemaining = "Завершен";
+        }
+        else if (remaining.TotalHours >= 1)
+        {
+            TimeRemaining = $"{Math.Floor(remaining.TotalHours)}ч {remaining.Minutes}м";
+        }
+        else if (remaining.TotalMinutes >= 1)
+        {
+            TimeRemaining = $"{remaining.Minutes}м {remaining.Seconds}с";
+        }
+        else
+        {
+            TimeRemaining = $"{remaining.Seconds}с";
+        }
+    }
+
+    /// <summary>
+    /// Просмотреть детали аукциона
+    /// </summary>
+    private async Task ViewDetails()
+    {
+        if (Auction != null)
+        {
+            await OnViewDetails.InvokeAsync(Auction.Id);
+        }
+    }
+
+    /// <summary>
+    /// Сделать ставку
+    /// </summary>
+    private async Task PlaceBid()
+    {
+        if (!IsAuthenticated || string.IsNullOrEmpty(CurrentUserId) || Auction == null)
+        {
+            ErrorMessage = "Вы должны войти для размещения ставки";
+            return;
+        }
+
+        // Получить текущего пользователя
+        var user = UserService.GetUserById(CurrentUserId);
+        if (user == null)
+        {
+            ErrorMessage = "Пользователь не найден";
+            return;
+        }
+
+        if (Auction.SellerId == user.Id || (!string.IsNullOrWhiteSpace(Auction.Seller?.Id) && Auction.Seller.Id == user.Id))
+        {
+            ErrorMessage = "Вы не можете делать ставки на свой лот";
+            return;
+        }
+
+        // Определить минимальную ставку
+        var minBid = Math.Max(Auction.StartPrice, Auction.CurrentBid) + 1;
+        if (BidAmount < minBid)
+        {
+            ErrorMessage = $"Минимальная ставка: {minBid} гроши";
+            return;
+        }
+
+        // Разместить ставку через сервис с валидацией
+        var (success, message) = BidService.PlaceBid(Auction.Id, CurrentUserId, BidAmount);
+
+        if (success)
+        {
+            ErrorMessage = "";
+
+            // Отправить уведомление продавцу о повышении ставки
+            NotificationService.NotifyBidIncreased(
+                Auction.SellerId,
+                Auction.Id,
+                Auction.Title,
+                BidAmount);
+
+            // Обновить UI
+            await InvokeAsync(StateHasChanged);
+
+            // Очистить поле ввода
+            BidAmount = Math.Max(1000, Auction.CurrentBid / 10);
+        }
+        else
+        {
+            ErrorMessage = message;
+        }
+    }
+}
+
+<style>
+    .auction-card {
+        border: 1px solid rgba(239, 216, 103, 0.2);
+        border-radius: 12px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+    }
+
+        .auction-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(104, 32, 33, 0.3);
+        }
+
+    .card-image {
+        position: relative;
+        width: 100%;
+        height: 280px;
+        overflow: hidden;
+    }
+
+        .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s;
+        }
+
+    .auction-card:hover .card-image img {
+        transform: scale(1.05);
+    }
+
+    .badge-featured {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: linear-gradient(135deg, #682021 0%, #8B2A2B 100%);
+        color: #EFD867;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .badge-charity {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .card-content {
+        padding: 20px;
+    }
+
+        .card-content h3 {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 0 0 8px 0;
+            color: white;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+    .category {
+        color: #EFD867;
+        font-size: 12px;
+        margin: 0 0 16px 0;
+    }
+
+    .bid-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-bottom: 16px;
+    }
+
+    .current-bid .label {
+        display: block;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.6);
+        margin-bottom: 4px;
+    }
+
+    .current-bid .amount {
+        font-size: 24px;
+        font-weight: bold;
+        color: #EFD867;
+    }
+
+    .bids-count {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 12px;
+    }
+
+    .timer {
+        background: rgba(104, 32, 33, 0.2);
+        border: 1px solid rgba(104, 32, 33, 0.3);
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 16px;
+        text-align: center;
+    }
+
+    .time-remaining {
+        color: #EFD867;
+        font-weight: bold;
+        font-size: 14px;
+    }
+
+    .btn-bid {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #682021 0%, #8B2A2B 100%);
+        color: #EFD867;
+        border: 1px solid rgba(239, 216, 103, 0.2);
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .btn-bid:hover:not(:disabled) {
+            box-shadow: 0 10px 30px rgba(104, 32, 33, 0.4);
+            transform: scale(1.02);
+        }
+
+        .btn-bid:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+    .error-message {
+        color: #ff6b6b;
+        font-size: 12px;
+        margin-top: 8px;
+        padding: 8px;
+        background: rgba(255, 107, 107, 0.1);
+        border-radius: 4px;
+    }
+</style>

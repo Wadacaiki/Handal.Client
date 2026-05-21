@@ -1,0 +1,397 @@
+@inherits LayoutComponentBase
+@using System.ComponentModel.DataAnnotations
+@inject UserService UserService
+@inject AuctionPlatformService PlatformService
+@using Handal.Client.Services
+
+<div class="main-layout font-sans text-burgundy bg-white min-h-screen flex flex-col">
+    <header class="main-layout__header sticky top-0 z-40 bg-white border-b border-burgundy/20">
+        <Header OnOpenAuth="() => OpenAuthModal()" />
+    </header>
+
+    <main class="main-layout__main flex-grow">
+        @Body
+    </main>
+
+    @if (!string.IsNullOrWhiteSpace(UserService.LastAuthRequest))
+    {
+        <div class="fixed bottom-4 left-4 z-50 bg-white border border-burgundy/20 shadow-lg rounded-xl px-4 py-2 text-xs text-burgundy font-bold">
+            @UserService.LastAuthRequest
+        </div>
+    }
+
+    @if (AuthModalOpen)
+    {
+        <div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" @onclick="() => CloseAuthModal()">
+            <!-- Window Container -->
+            <div class="w-full max-w-3xl bg-white rounded-2xl overflow-hidden relative shadow-2xl animate-fade-in-up border-4 border-yellow max-h-[90vh]" @onclick:stopPropagation>
+                
+                <!-- Settings Button (Top Left of Modal) -->
+                <button class="absolute top-4 left-4 z-20 text-white/50 hover:text-white transition-colors p-2" 
+                        @onclick="ToggleSettings" title="Настройки Email">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                </button>
+
+                @if (ShowSettings)
+                {
+                     <div class="absolute inset-0 z-30 bg-burgundy text-white p-8 flex flex-col">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-xl font-bold">Настройки Email (EmailJS)</h3>
+                            <button @onclick="ToggleSettings" class="text-white/70 hover:text-white">✕</button>
+                        </div>
+                        <p class="text-sm text-white/70 mb-4">
+                            Для реальной отправки писем зарегистрируйтесь на <a href="https://www.emailjs.com/" target="_blank" class="text-yellow underline">emailjs.com</a> (бесплатно) и введите ключи.
+                        </p>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider mb-1 text-white/60">Service ID</label>
+                                <input class="w-full px-3 py-2 bg-black/20 border border-white/20 rounded text-white focus:border-yellow outline-none" @bind="_emailServiceId" placeholder="service_xxx" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider mb-1 text-white/60">Template ID</label>
+                                <input class="w-full px-3 py-2 bg-black/20 border border-white/20 rounded text-white focus:border-yellow outline-none" @bind="_emailTemplateId" placeholder="template_xxx" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider mb-1 text-white/60">User ID (Public Key)</label>
+                                <input class="w-full px-3 py-2 bg-black/20 border border-white/20 rounded text-white focus:border-yellow outline-none" @bind="_emailPublicKey" placeholder="user_xxx" />
+                            </div>
+                        </div>
+
+                        <div class="mt-auto pt-6">
+                             <button class="w-full py-3 bg-yellow text-burgundy font-bold rounded hover:bg-white transition-colors" @onclick="SaveSettings">
+                                 Сохранить
+                             </button>
+                        </div>
+                     </div>
+                }
+
+                
+
+                <div class="p-6 md:p-8 bg-white relative flex flex-col justify-center overflow-auto">
+                    <!-- Close Button -->
+                    <button class="absolute top-4 right-4 text-burgundy/50 hover:text-burgundy transition-colors p-2 rounded-full hover:bg-yellow/20"
+                            @onclick="() => CloseAuthModal()">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+
+                    <div class="mb-8">
+                        <h2 class="text-3xl font-black text-burgundy mb-2">
+                            @if (AuthMode == "login") { <text>Вход</text> }
+                            else if (AuthMode == "register") { <text>Регистрация</text> }
+                            else { <text>Подтверждение</text> }
+                        </h2>
+                        <p class="text-burgundy/70">
+                            @if (AuthMode == "login") { <text>Введите свои данные для входа</text> }
+                            else if (AuthMode == "register") { <text>Заполните форму для создания аккаунта</text> }
+                            else { <text>Введите код, отправленный на @authModel.Email</text> }
+                        </p>
+                    </div>
+
+                    <EditForm Model="authModel" OnValidSubmit="OnAuthSubmit">
+                        <DataAnnotationsValidator />
+                        
+                        @if (!string.IsNullOrEmpty(AuthError))
+                        {
+                            <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm flex items-start gap-3 animate-fade-in">
+                                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <div>@AuthError</div>
+                            </div>
+                        }
+
+                        @if (AuthMode == "verify")
+                        {
+                            <div class="mb-6 p-4 rounded-xl bg-yellow/10 border border-yellow text-burgundy text-sm">
+                                <p class="font-bold mb-1">Код подтверждения:</p>
+                                <p class="mb-2">Если письмо не пришло, проверьте папку <b>Спам</b> и нажмите повторную отправку.</p>
+                                <div class="flex items-center gap-3">
+                                    <button type="button" class="text-xs text-burgundy font-bold hover:underline" @onclick="ResendVerificationCode">
+                                        Отправить еще раз
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="mb-5">
+                                <label class="block text-sm font-bold text-burgundy mb-2">Код из письма</label>
+                                <InputText class="w-full px-4 py-3 rounded-xl bg-white border border-burgundy/30 text-burgundy placeholder-burgundy/40 focus:outline-none focus:ring-2 focus:ring-yellow focus:border-transparent transition-all text-center text-2xl tracking-widest font-mono" 
+                                           placeholder="0000"
+                                           @bind-Value="authModel.VerificationCode" />
+                            </div>
+                        }
+                        else if (AuthMode == "register")
+                        {
+                            <div class="mb-5">
+                                <label class="block text-sm font-bold text-burgundy mb-2">Ваше имя</label>
+                                <InputText class="w-full px-4 py-3 rounded-xl bg-white border border-burgundy/30 text-burgundy placeholder-burgundy/40 focus:outline-none focus:ring-2 focus:ring-yellow focus:border-transparent transition-all" 
+                                           placeholder="Иван Петров"
+                                           @bind-Value="authModel.Name" />
+                            </div>
+                            <div class="mb-5">
+                                <label class="block text-sm font-bold text-burgundy mb-2">Возраст</label>
+                                <InputText class="w-full px-4 py-3 rounded-xl bg-white border border-burgundy/30 text-burgundy placeholder-burgundy/40 focus:outline-none focus:ring-2 focus:ring-yellow focus:border-transparent transition-all" 
+                                           placeholder="18"
+                                           @bind-Value="authModel.Age" />
+                            </div>
+                            
+                        }
+
+                        @if (AuthMode != "verify")
+                        {
+                            <div class="mb-5">
+                                <label class="block text-sm font-bold text-burgundy mb-2">Email</label>
+                                <InputText class="w-full px-4 py-3 rounded-xl bg-white border border-burgundy/30 text-burgundy placeholder-burgundy/40 focus:outline-none focus:ring-2 focus:ring-yellow focus:border-transparent transition-all" 
+                                           placeholder="name@example.com"
+                                           type="email"
+                                           @bind-Value="authModel.Email" />
+                            </div>
+
+                            <div class="mb-8">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="block text-sm font-bold text-burgundy">Пароль</label>
+                                    @if (AuthMode == "login") {
+                                        <button type="button" class="text-sm text-burgundy/80 hover:text-burgundy font-bold hover:underline" @onclick:preventDefault>Забыли пароль?</button>
+                                    }
+                                </div>
+                                <InputText type="password" 
+                                           class="w-full px-4 py-3 rounded-xl bg-white border border-burgundy/30 text-burgundy placeholder-burgundy/40 focus:outline-none focus:ring-2 focus:ring-yellow focus:border-transparent transition-all" 
+                                           placeholder="••••••••"
+                                           @bind-Value="authModel.Password" />
+                            </div>
+                        }
+
+                        <button type="submit" class="w-full mb-6 px-6 py-4 rounded-xl font-bold text-white bg-burgundy hover:bg-burgundy/90 transition-all shadow-lg shadow-burgundy/20 transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center" disabled="@IsLoading">
+                            @if (IsLoading)
+                            {
+                                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>Загрузка...</span>
+                            }
+                            else if (AuthMode == "login") { <text>Войти</text> }
+                            else if (AuthMode == "register") { <text>Создать аккаунт</text> }
+                            else { <text>Подтвердить</text> }
+                        </button>
+
+                        <div class="text-center">
+                            <p class="text-burgundy/70">
+                                @if (AuthMode == "login")
+                                {
+                                    <span>Впервые здесь? <button type="button" class="text-burgundy font-black hover:underline transition-colors" 
+                                                               @onclick="ToggleAuthMode">Регистрация</button></span>
+                                }
+                                else if (AuthMode == "register")
+                                {
+                                    <span>Уже есть аккаунт? <button type="button" class="text-burgundy font-black hover:underline transition-colors"
+                                                                    @onclick="ToggleAuthMode">Войти</button></span>
+                                }
+                                else
+                                {
+                                    <span><button type="button" class="text-burgundy font-black hover:underline transition-colors"
+                                                  @onclick='() => AuthMode = "register"'>Назад</button></span>
+                                }
+                            </p>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool AuthModalOpen { get; set; }
+    private bool IsLoading { get; set; }
+    private bool ShowSettings { get; set; }
+    private string AuthMode { get; set; } = "login";
+    private string AuthError { get; set; } = string.Empty;
+    private AuthModel authModel { get; set; } = new();
+
+    // Settings fields
+    private string _emailServiceId = "";
+    private string _emailTemplateId = "";
+    private string _emailPublicKey = "";
+
+    private void ToggleSettings()
+    {
+        ShowSettings = !ShowSettings;
+        if (ShowSettings && PlatformService.EmailService is EmailJsService emailJs)
+        {
+            _emailServiceId = emailJs.ServiceId;
+            _emailTemplateId = emailJs.TemplateId;
+            _emailPublicKey = emailJs.PublicKey;
+        }
+    }
+
+    private void SaveSettings()
+    {
+        if (PlatformService.EmailService is EmailJsService emailJs)
+        {
+            emailJs.ServiceId = _emailServiceId;
+            emailJs.TemplateId = _emailTemplateId;
+            emailJs.PublicKey = _emailPublicKey;
+        }
+        ShowSettings = false;
+    }
+
+    private void OpenAuthModal()
+    {
+        AuthModalOpen = true;
+        AuthError = string.Empty;
+        AuthMode = "login";
+        ShowSettings = false;
+    }
+
+    private void OpenAuthModalFromService()
+    {
+        AuthModalOpen = true;
+        AuthError = string.Empty;
+        AuthMode = UserService.PreferredAuthMode ?? "login";
+        ShowSettings = false;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnDebugChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    protected override void OnInitialized()
+    {
+        UserService.OnOpenAuthRequested += OpenAuthModalFromService;
+        UserService.OnDebugStateChanged += OnDebugChanged;
+        _authChangedHandler = () =>
+        {
+            PlatformService.SaveState();
+            InvokeAsync(StateHasChanged);
+        };
+        UserService.OnAuthStateChanged += _authChangedHandler;
+    }
+
+    public void Dispose()
+    {
+        UserService.OnOpenAuthRequested -= OpenAuthModalFromService;
+        UserService.OnDebugStateChanged -= OnDebugChanged;
+        if (_authChangedHandler is not null)
+        {
+            UserService.OnAuthStateChanged -= _authChangedHandler;
+        }
+    }
+
+    private void CloseAuthModal()
+    {
+        AuthModalOpen = false;
+    }
+
+    private void ToggleAuthMode() 
+    {
+        AuthMode = AuthMode == "login" ? "register" : "login";
+        AuthError = string.Empty;
+    }
+
+    private async Task OnAuthSubmit()
+    {
+        AuthError = string.Empty;
+        IsLoading = true;
+        
+        try
+        {
+            if (AuthMode == "login")
+            {
+                var (success, message, user) = UserService.Login(authModel.Email ?? string.Empty, authModel.Password ?? string.Empty);
+                if (success && user != null)
+                {
+                    PlatformService.SaveState();
+                    AuthModalOpen = false;
+                }
+                else if (user != null && !user.IsEmailVerified)
+                {
+                    AuthMode = "verify";
+                    // Если код потерян, можно перегенерировать
+                    var result = await UserService.ResendCodeAsync(user.Email);
+                    AuthError = result.message;
+                    PlatformService.SaveState();
+                }
+                else
+                {
+                    AuthError = message;
+                }
+            }
+            else if (AuthMode == "verify")
+            {
+                var (success, message) = UserService.VerifyEmail(authModel.Email ?? string.Empty, authModel.VerificationCode ?? string.Empty);
+                if (success)
+                {
+                    PlatformService.SaveState();
+                    AuthModalOpen = false;
+                }
+                else
+                {
+                    AuthError = message;
+                }
+            }
+            else // Register
+            {
+                var fullName = string.IsNullOrWhiteSpace(authModel.Name) ? "Пользователь" : authModel.Name!;
+                if (!int.TryParse(authModel.Age ?? string.Empty, out var age) || age < 18)
+                {
+                    AuthError = "Возраст должен быть 18 лет и старше";
+                    return;
+                }
+                var dob = DateTime.Today.AddYears(-age);
+                var (success, message, user) = await UserService.RegisterAsync(authModel.Email ?? string.Empty, authModel.Password ?? string.Empty, fullName, dob);
+                if (success && user != null)
+                {
+                    // Переход к подтверждению
+                    AuthMode = "verify";
+                    AuthError = message; // Содержит инфо об отправке
+                    PlatformService.SaveState();
+                }
+                else
+                {
+                    AuthError = message;
+                }
+            }
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task ResendVerificationCode()
+    {
+        if (string.IsNullOrEmpty(authModel.Email)) return;
+        
+        IsLoading = true;
+        AuthError = "Отправка...";
+        
+        try
+        {
+            var result = await UserService.ResendCodeAsync(authModel.Email);
+            AuthError = result.message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private sealed class AuthModel
+    {
+        [Required(ErrorMessage = "Укажите email")]
+        public string? Email { get; set; }
+
+        [Required(ErrorMessage = "Укажите пароль")]
+        public string? Password { get; set; }
+
+        public string? Name { get; set; }
+        
+        public string? VerificationCode { get; set; }
+        public string? Age { get; set; }
+    }
+
+    private Action? _authChangedHandler;
+}

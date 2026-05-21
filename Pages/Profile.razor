@@ -1,0 +1,467 @@
+@page "/profile"
+@inject UserService UserService
+@inject NotificationService NotificationService
+@inject AuctionPlatformService PlatformService
+
+<div class="min-h-screen bg-white py-12 font-sans text-burgundy">
+    <div class="container mx-auto px-4 lg:px-8">
+
+        <!-- Заголовок -->
+        <div class="mb-12">
+            <h1 class="text-4xl font-black mb-2 text-burgundy">Мой профиль</h1>
+            <p class="text-lg text-burgundy/70">Управление аккаунтом и финансами</p>
+        </div>
+
+        @if (UserService.CurrentUser is null)
+        {
+            <div class="p-8 rounded-2xl bg-burgundy/5 border-2 border-burgundy/10 text-center max-w-lg mx-auto">
+                <p class="text-burgundy text-lg font-bold mb-6">Вы не вошли в систему.</p>
+                <a href="/" class="inline-block px-8 py-3 rounded-xl bg-burgundy text-white font-bold hover:bg-burgundy/90 transition-all shadow-lg hover:shadow-burgundy/20">
+                    Вернуться на главную
+                </a>
+            </div>
+        }
+        else
+        {
+            <div class="grid lg:grid-cols-3 gap-8">
+
+                <!-- Профиль карточка -->
+                <div class="lg:col-span-2 space-y-8">
+
+                    <!-- Мои активные лоты -->
+                    <div class="p-8 rounded-2xl bg-white border border-burgundy/10 shadow-xl">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-black text-burgundy">Мои активные лоты</h2>
+                            <a href="/#auctions" class="text-sm font-bold text-burgundy/70 hover:text-burgundy">Перейти к ленте</a>
+                        </div>
+                        @{
+                            var myAuctions = PlatformService.AuctionService.GetAllAuctions()
+                            .Where(a => a.SellerId == UserService.CurrentUser.Id && (a.Status == AuctionStatus.Active || a.Status == AuctionStatus.Pending))
+                            .ToList();
+                        }
+                        @if (myAuctions.Count == 0)
+                        {
+                            <div class="p-6 rounded-xl bg-burgundy/5 border border-burgundy/10 text-burgundy/70 text-sm">
+                                У вас пока нет активных лотов.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="grid md:grid-cols-2 gap-4">
+                                @foreach (var a in myAuctions)
+                                {
+                                    <div class="p-4 rounded-xl border border-burgundy/10 bg-white flex items-center gap-4 relative overflow-hidden">
+                                        @if (a.Status == AuctionStatus.Pending)
+                                        {
+                                            <div class="absolute top-0 right-0 px-3 py-1 bg-yellow text-burgundy text-[10px] font-black uppercase rounded-bl-xl shadow-sm z-10">
+                                                в ожидании ответа от админа
+                                            </div>
+                                        }
+                                        <img src="@a.Image" alt="@a.Title" class="w-16 h-16 object-cover rounded-lg border border-burgundy/10 @(a.Status == AuctionStatus.Pending ? "opacity-50" : "")" />
+                                        <div class="flex-1">
+                                            <div class="font-bold text-burgundy truncate">@a.Title</div>
+                                            <div class="text-xs text-burgundy/60">
+                                                @if (a.Status == AuctionStatus.Pending)
+                                                {
+                                                    @if (a.AppraisedPrice is null)
+                                                    {
+                                                        <span class="text-amber-600 font-bold">На модерации: ожидает оценки</span>
+                                                    }
+                                                    else if (a.SellerAcceptedAppraisal)
+                                                    {
+                                                        <span class="text-green-700 font-bold">Оценка подтверждена: @a.AppraisedPrice.Value.ToString("N0") грошей</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-amber-700 font-bold">Оценено на @a.AppraisedPrice.Value.ToString("N0") грошей, ожидается ваш ответ в уведомлениях</span>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <span>Категория: @a.Category • Текущая цена: @a.CurrentBid.ToString("N0")</span>
+                                                }
+                                            </div>
+                                        </div>
+                                        @if (a.Status == AuctionStatus.Active)
+                                        {
+                                            <button class="px-4 py-2 rounded-lg font-bold text-white bg-burgundy hover:bg-burgundy/90"
+                                                    @onclick="() => EndMyAuction(a.Id)">
+                                                Завершить
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="p-8 rounded-2xl bg-white border border-burgundy/10 shadow-xl">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-black text-burgundy">История торгов</h2>
+                            <a href="/history" class="text-sm font-bold text-burgundy/70 hover:text-burgundy">Открыть всю историю</a>
+                        </div>
+                        @{
+                            var mySalesHistory = PlatformService.AuctionService.GetHistoryBySeller(UserService.CurrentUser.Id)
+                            .OrderByDescending(h => h.CompletedAt)
+                            .ToList();
+                            var myParticipationHistory = PlatformService.AuctionService.GetHistoryByParticipant(UserService.CurrentUser.Id)
+                            .OrderByDescending(h => h.CompletedAt)
+                            .ToList();
+                        }
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div class="p-5 rounded-xl bg-burgundy/5 border border-burgundy/10">
+                                <h3 class="text-lg font-black text-burgundy mb-4">Созданные и завершённые</h3>
+                                @if (mySalesHistory.Count == 0)
+                                {
+                                    <div class="text-sm text-burgundy/60">Нет завершённых торгов по вашим лотам.</div>
+                                }
+                                else
+                                {
+                                    <div class="space-y-3 max-h-64 overflow-auto pr-1">
+                                        @foreach (var h in mySalesHistory.Take(8))
+                                        {
+                                            <div class="p-3 rounded-lg bg-white border border-burgundy/10">
+                                                <div class="font-bold text-burgundy truncate">@((h.Auction?.Title) ?? "Лот")</div>
+                                                <div class="text-xs text-burgundy/60 mt-1">@h.CompletedAt.ToString("g")</div>
+                                                <div class="text-sm font-bold mt-1">
+                                                    @if (h.FinalStatus == AuctionStatus.Completed)
+                                                    {
+                                                        <span class="text-green-700">Продано: @h.SellerProceeds.ToString("N0") гроши</span>
+                                                    }
+                                                    else if (h.FinalStatus == AuctionStatus.Cancelled)
+                                                    {
+                                                        <span class="text-amber-600">Отменено продавцом</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-burgundy/70">Без продажи</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                            <div class="p-5 rounded-xl bg-yellow/10 border border-yellow/30">
+                                <h3 class="text-lg font-black text-burgundy mb-4">История ваших ставок</h3>
+                                @if (myParticipationHistory.Count == 0)
+                                {
+                                    <div class="text-sm text-burgundy/60">Вы ещё не участвовали ни в одном аукционе.</div>
+                                }
+                                else
+                                {
+                                    <div class="space-y-3 max-h-64 overflow-auto pr-1">
+                                        @foreach (var h in myParticipationHistory.Take(8))
+                                        {
+                                            var isWinner = h.WinnerId == UserService.CurrentUser.Id;
+                                            <div class="p-3 rounded-lg bg-white border border-burgundy/10 @(isWinner ? "border-green-500/30 bg-green-50/10" : "")">
+                                                <div class="flex justify-between items-start gap-2">
+                                                    <div class="font-bold text-burgundy truncate flex-1">@((h.Auction?.Title) ?? "Лот")</div>
+                                                    @if (isWinner)
+                                                    {
+                                                        <span class="px-2 py-0.5 rounded text-[10px] font-black bg-green-100 text-green-700 uppercase">Победа</span>
+                                                    }
+                                                </div>
+                                                <div class="text-xs text-burgundy/60 mt-1">@h.CompletedAt.ToString("g")</div>
+                                                <div class="text-sm font-bold text-burgundy mt-1">
+                                                    @if (isWinner)
+                                                    {
+                                                        <span>Покупка: @h.FinalPrice.ToString("N0") гроши</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-burgundy/50">Завершено</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Информация профиля -->
+                    <div class="p-8 rounded-2xl bg-white border border-burgundy/10 shadow-xl">
+                        <div class="flex items-center gap-6 mb-8">
+                            <div class="w-24 h-24 rounded-full bg-burgundy text-white flex items-center justify-center text-4xl font-black shadow-lg shadow-burgundy/20 ring-4 ring-yellow/20">
+                                @UserService.CurrentUser.FullName.First()
+                            </div>
+                            <div>
+                                <h2 class="text-2xl font-black text-burgundy mb-1">@UserService.CurrentUser.FullName</h2>
+                                <p class="text-burgundy/60 font-medium">@UserService.CurrentUser.Email</p>
+                            </div>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <!-- Баланс -->
+                            <div class="p-6 rounded-2xl bg-yellow/10 border border-yellow/30 relative overflow-hidden group hover:shadow-lg hover:shadow-yellow/10 transition-all">
+                                <div class="absolute -right-4 -top-4 w-20 h-20 bg-yellow/20 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500"></div>
+                                <p class="text-sm font-bold text-burgundy/60 uppercase tracking-wider mb-2 relative z-10">Общий баланс</p>
+                                <h3 class="text-3xl font-black text-burgundy mb-2 relative z-10">@string.Format("{0:N0}", UserService.CurrentUser.Balance) <span class="text-lg opacity-60">гроши</span></h3>
+                                <p class="text-xs font-bold text-burgundy/50 relative z-10">Все ваши средства</p>
+                            </div>
+
+                            <!-- Доступно -->
+                            <div class="p-6 rounded-2xl bg-burgundy/5 border border-burgundy/10 relative overflow-hidden group hover:shadow-lg hover:shadow-burgundy/10 transition-all">
+                                <div class="absolute -right-4 -top-4 w-20 h-20 bg-burgundy/10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500"></div>
+                                <p class="text-sm font-bold text-burgundy/60 uppercase tracking-wider mb-2 relative z-10">Доступно</p>
+                                <h3 class="text-3xl font-black text-burgundy mb-2 relative z-10">@string.Format("{0:N0}", UserService.CurrentUser.AvailableBalance) <span class="text-lg opacity-60">гроши</span></h3>
+                                <p class="text-xs font-bold text-burgundy/50 relative z-10">Не зарезервировано</p>
+                            </div>
+
+                            <!-- Карта -->
+                            <div class="p-6 rounded-2xl bg-white border border-burgundy/10 md:col-span-2 flex items-center justify-between shadow-sm">
+                                <div>
+                                    <p class="text-sm font-bold text-burgundy/60 uppercase tracking-wider mb-1">Платежная карта</p>
+                                    @if (UserService.CurrentUser.IsCardLinked)
+                                    {
+                                        <p class="text-xl font-mono font-bold text-burgundy tracking-wider">@UserService.CurrentUser.CardMask</p>
+                                    }
+                                    else
+                                    {
+                                        <p class="text-burgundy/50 font-medium">Карта не привязана</p>
+                                    }
+                                </div>
+                                <div class="h-10 w-10 rounded-full flex items-center justify-center @(UserService.CurrentUser.IsCardLinked ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-400")">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Привязка карты -->
+                    <div class="p-8 rounded-2xl bg-white border border-burgundy/10 shadow-lg">
+                        <h3 class="text-xl font-black text-burgundy mb-6">Привязать карту</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-bold text-burgundy mb-2">Номер карты</label>
+                                <input @bind="cardNumber"
+                                       @bind:event="oninput"
+                                       inputmode="numeric" pattern="[0-9 ]*"
+                                       class="w-full px-4 py-3 rounded-xl bg-white border-2 border-burgundy/10 text-burgundy placeholder-burgundy/30 focus:border-yellow focus:outline-none transition-colors font-mono"
+                                       placeholder="0000 0000 0000 0000"
+                                       maxlength="19" />
+                            </div>
+                            <button @onclick="LinkCard"
+                                    class="w-full py-3 rounded-xl font-bold bg-burgundy text-white hover:bg-burgundy/90 transition-all shadow-lg hover:shadow-burgundy/20 transform hover:-translate-y-0.5 active:translate-y-0">
+                                Привязать карту
+                            </button>
+                            @if (!string.IsNullOrEmpty(cardMessage))
+                            {
+                                <div class="p-3 rounded-xl text-sm font-bold @(cardMessage.Contains("привязана") ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")">
+                                    @cardMessage
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Пополнение баланса -->
+                    <div class="p-8 rounded-2xl bg-white border border-burgundy/10 shadow-lg border-l-4 border-l-yellow">
+                        <h3 class="text-xl font-black text-burgundy mb-6">Пополнить баланс</h3>
+                        <div class="space-y-6">
+                            <div>
+                                <label class="block text-sm font-bold text-burgundy mb-2">Сумма (гроши)</label>
+                                <div class="relative">
+                                    <input type="number" @bind="topupAmount"
+                                           min="100" step="100"
+                                           class="w-full px-4 py-3 rounded-xl bg-white border-2 border-burgundy/10 text-burgundy font-bold placeholder-burgundy/30 focus:border-yellow focus:outline-none transition-colors"
+                                           placeholder="1000" />
+                                    <div class="absolute right-4 top-1/2 -translate-y-1/2 text-burgundy/40 font-bold pointer-events-none">гроши</div>
+                                </div>
+                            </div>
+
+                            <!-- Быстрые суммы -->
+                            <div class="grid grid-cols-3 gap-3">
+                                <button @onclick="@(() => topupAmount = 1000)"
+                                        class="py-2 px-3 rounded-lg border-2 border-burgundy/5 bg-burgundy/5 text-burgundy font-bold hover:bg-yellow/20 hover:border-yellow/50 transition-all text-sm">
+                                    1000
+                                </button>
+                                <button @onclick="@(() => topupAmount = 5000)"
+                                        class="py-2 px-3 rounded-lg border-2 border-burgundy/5 bg-burgundy/5 text-burgundy font-bold hover:bg-yellow/20 hover:border-yellow/50 transition-all text-sm">
+                                    5000
+                                </button>
+                                <button @onclick="@(() => topupAmount = 10000)"
+                                        class="py-2 px-3 rounded-lg border-2 border-burgundy/5 bg-burgundy/5 text-burgundy font-bold hover:bg-yellow/20 hover:border-yellow/50 transition-all text-sm">
+                                    10000
+                                </button>
+                            </div>
+
+                            <button @onclick="TopUp"
+                                    class="w-full py-4 rounded-xl font-bold bg-yellow text-burgundy hover:bg-yellow/80 transition-all shadow-lg hover:shadow-yellow/20 transform hover:-translate-y-0.5 active:translate-y-0">
+                                Пополнить баланс
+                            </button>
+
+                            @if (!string.IsNullOrEmpty(topupMessage))
+                            {
+                                <div class="p-3 rounded-xl text-sm font-bold @(topupMessage.Contains("пополнен") || topupMessage.Contains("успеш") ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")">
+                                    @topupMessage
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Боковая панель -->
+                <div class="space-y-6">
+                    <!-- Быстрые действия -->
+                    <div class="p-6 rounded-2xl bg-white border border-burgundy/10 shadow-lg">
+                        <h3 class="text-lg font-black text-burgundy mb-4">Быстрые действия</h3>
+                        <div class="space-y-3">
+                            <a href="/" class="flex items-center gap-3 p-4 rounded-xl bg-burgundy/5 text-burgundy font-bold hover:bg-burgundy/10 transition-all group">
+                                <span>Все аукционы</span>
+                            </a>
+                            <a href="/history" class="flex items-center gap-3 p-4 rounded-xl bg-burgundy/5 text-burgundy font-bold hover:bg-burgundy/10 transition-all group">
+                                <span>История</span>
+                            </a>
+                            <a href="/notifications" class="flex items-center gap-3 p-4 rounded-xl bg-burgundy/5 text-burgundy font-bold hover:bg-burgundy/10 transition-all group relative">
+                                <span>Уведомления</span>
+                                @{
+                                    var unread = NotificationService.GetUnreadCount(UserService.CurrentUser.Id);
+                                    @if (unread > 0)
+                                    {
+                                        <span class="ml-auto w-6 h-6 rounded-full bg-yellow text-burgundy text-xs flex items-center justify-center shadow-sm">@unread</span>
+                                    }
+                                }
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Статус -->
+                    <div class="p-6 rounded-2xl bg-white border border-burgundy/10 shadow-lg">
+                        <h3 class="text-lg font-black text-burgundy mb-4">Статус аккаунта</h3>
+                        <div class="space-y-4 text-sm">
+                            <div class="flex justify-between items-center pb-3 border-b border-burgundy/5">
+                                <span class="text-burgundy/60 font-medium">Активность</span>
+                                <span class="text-green-600 font-bold flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span> Активен</span>
+                            </div>
+                            <div class="flex justify-between items-center pb-3 border-b border-burgundy/5">
+                                <span class="text-burgundy/60 font-medium">Верификация</span>
+                                <span class="font-bold">
+                                    @if (UserService.CurrentUser.IsCardLinked)
+                                    {
+                                        <span class="text-green-600">Карта привязана</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-amber-500">Карта не привязана</span>
+                                    }
+                                </span>
+                            </div>
+                            <div class="flex justify-between items-center pb-3 border-b border-burgundy/5">
+                                <span class="text-burgundy/60 font-medium">Возраст</span>
+                                <span class="font-bold">
+                                    @{
+                                        var age = CalculateAge(UserService.CurrentUser.DateOfBirth);
+                                        if (age >= 18)
+                                        {
+                                            <span class="text-green-600">@age лет</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-red-500">Младше 18</span>
+                                        }
+                                    }
+                                </span>
+                            </div>
+                            <div class="flex justify-between items-center pt-1">
+                                <span class="text-burgundy/60 font-medium">Рейтинг</span>
+                                <span class="text-yellow font-black text-lg">@UserService.CurrentUser.Rating.ToString("F1")</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string cardNumber = string.Empty;
+    private string cardMessage = string.Empty;
+    private decimal topupAmount = 1000m;
+    private string topupMessage = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        // Подписка на изменения для сохранения в JSON
+        UserService.OnAuthStateChanged += SaveState;
+    }
+
+    public void Dispose()
+    {
+        UserService.OnAuthStateChanged -= SaveState;
+    }
+
+    private void SaveState()
+    {
+        PlatformService.SaveState();
+        StateHasChanged();
+    }
+
+    private void LinkCard()
+    {
+        if (UserService.CurrentUser == null) return;
+        if (string.IsNullOrWhiteSpace(cardNumber))
+        {
+            cardMessage = "Введите номер карты";
+            return;
+        }
+        var clean = cardNumber.Replace(" ", "").Replace("-", "");
+        if (clean.Length != 16 || !clean.All(char.IsDigit))
+        {
+            cardMessage = "Номер карты должен содержать ровно 16 цифр";
+            return;
+        }
+        var ok = UserService.LinkCard(UserService.CurrentUser.Id, clean);
+        cardMessage = ok ? "Карта успешно привязана" : "Ошибка при привязке карты. Проверьте формат номера.";
+        if (ok)
+        {
+            cardNumber = string.Empty;
+            SaveState();
+        }
+    }
+
+    private void TopUp()
+    {
+        if (UserService.CurrentUser == null) return;
+        if (topupAmount <= 0)
+        {
+            topupMessage = "Укажите сумму больше 0";
+            return;
+        }
+        var (success, message) = UserService.AddBalance(UserService.CurrentUser.Id, topupAmount);
+        topupMessage = message;
+        if (success)
+        {
+            topupAmount = 1000m;
+            SaveState();
+        }
+    }
+
+    private void EndMyAuction(string id)
+    {
+        var user = UserService.CurrentUser;
+        if (user is null) return;
+        var ok = PlatformService.EndAuctionBySellerAndSettle(id, user.Id);
+        if (ok)
+        {
+            PlatformService.SaveState();
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    private int CalculateAge(DateTime dateOfBirth)
+    {
+        var today = DateTime.Today;
+        var age = today.Year - dateOfBirth.Year;
+
+        // Проверяем, был ли уже день рождения в этом году
+        if (dateOfBirth.Date > today.AddYears(-age))
+        {
+            age--;
+        }
+
+        return age;
+    }
+}

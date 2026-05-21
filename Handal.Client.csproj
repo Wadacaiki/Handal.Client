@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+    <RootNamespace>Handal.Client</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.0" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="wwwroot\css\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Target Name="TailwindBuild" BeforeTargets="Build">
+    <Exec Command="npm run -s build:css" ContinueOnError="true" />
+  </Target>
+
+  <Target Name="CopyLotImages" BeforeTargets="Build">
+    <ItemGroup>
+      <_LotImages Include="$(ProjectDir)..\..\картинки\**\*.jpg" />
+    </ItemGroup>
+    <MakeDir Directories="$(ProjectDir)wwwroot\images\lots" />
+    <Copy SourceFiles="@(_LotImages)"
+          DestinationFiles="@(_LotImages->'$(ProjectDir)wwwroot\images\lots\%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>
