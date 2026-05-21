@@ -8,20 +8,80 @@
 
 ### Структура папок
 ```
-Handal/
-├── Handal.sln                 # Solution файл
-├── src/
-│   ├── Handal.Client/        # Blazor WebAssembly приложение
-│   │   ├── Pages/            # Страницы (Index.razor)
-│   │   ├── Components/       # Переиспользуемые компоненты
-│   │   │   ├── AuctionCard.razor
-│   │   │   └── UI/          # UI компоненты
-│   │   ├── Shared/          # Shared компоненты (Header, Footer, Layout)
-│   │   ├── wwwroot/         # Статические файлы
-│   │   ├── Program.cs       # Точка входа
-│   │   └── tailwind.config.js
-│   └── styles/              # Глобальные стили
-└── package.json             # Корневой конфиг для CSS сборки
+📁 Handal.Client
+│
+├── 📁 Connected Services
+│
+├── 📁 Properties
+│
+├── 📁 wwwroot
+│   ├── 📁 css
+│   │   ├── components.css
+│   │   ├── fonts.css
+│   │   ├── forms.css
+│   │   ├── index.css
+│   │   ├── layout.css
+│   │   ├── tailwind.css
+│   │   ├── theme.css
+│   │   ├── utilities.css
+│   │   └── variables.css
+│   ├── 📁 images
+│   └── index.html
+│
+├── 📁 Зависимости (Dependencies)
+│
+├── 📁 Components
+│   └── 📁 UI
+│       ├── AuctionCard.razor
+│       ├── AuctionCardWithServices.razor
+│       └── Chat.razor
+│
+├── 📁 Models
+│   ├── Auction.cs
+│   ├── AuctionHistory.cs
+│   ├── BalanceTransaction.cs
+│   ├── Bid.cs
+│   ├── ChatMessage.cs
+│   ├── Notification.cs
+│   └── Tagging.cs
+│
+├── 📁 Pages
+│   ├── Admin.razor
+│   ├── AdminTags.razor
+│   ├── AppraisalResponse.razor
+│   ├── AuctionDetail.razor
+│   ├── History.razor
+│   ├── Index.razor
+│   ├── Index.razor.css
+│   ├── Notifications.razor
+│   └── Profile.razor
+│
+├── 📁 Services
+│   ├── AuctionPlatformService.cs
+│   ├── AuctionService.cs
+│   ├── BidService.cs
+│   ├── ChatService.cs
+│   ├── EmailJsService.cs
+│   ├── IEmailService.cs
+│   ├── NotificationService.cs
+│   ├── PersistenceService.cs
+│   ├── TagService.cs
+│   └── UserService.cs
+│
+├── 📁 Shared
+│   ├── Categories.razor
+│   ├── Header.razor
+│   ├── Hero.razor
+│   └── MainLayout.razor
+│
+├── .gitattributes
+├── .gitignore
+├── _Imports.razor
+├── App.razor
+├── package.json
+├── package-lock.json
+├── postcss.config.js
+└── Program.cs
 ```
 
 ## 🚀 Начало работы
@@ -49,7 +109,7 @@ npm run dev:css
 dotnet run --project src/Handal.Client/Handal.Client.csproj
 ```
 
-Приложение будет доступно по адресу `https://localhost:5001`
+Приложение будет доступно по адресу `https://localhost:61313`
 
 ## 📦 Компоненты
 
